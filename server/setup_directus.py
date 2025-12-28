@@ -9,7 +9,7 @@ import urllib.error
 import json
 import ssl
 
-BASE_URL = "http://localhost:8055"
+BASE_URL = "https://shtora-production.up.railway.app"
 EMAIL = "admin@shtora.ua"
 PASSWORD = "admin123"
 
@@ -219,7 +219,7 @@ def main():
     print("\n" + "=" * 50)
     print("Setup complete!")
     print("=" * 50)
-    print("\nDirectus: http://localhost:8055")
+    print("\nDirectus: https://shtora-production.up.railway.app")
     print("Login: admin@shtora.ua / admin123")
 
 if __name__ == "__main__":
