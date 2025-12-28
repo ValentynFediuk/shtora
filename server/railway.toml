@@ -1,9 +1,8 @@
 [build]
 builder = "dockerfile"
-dockerfilePath = "Dockerfile"
+dockerfilePath = "./Dockerfile"
 
 [deploy]
 healthcheckPath = "/server/health"
 healthcheckTimeout = 300
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 3
+startCommand = "node /directus/cli.js bootstrap && node /directus/cli.js start"
