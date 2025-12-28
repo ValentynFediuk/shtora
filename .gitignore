@@ -28,3 +28,11 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+
+# Server data (Docker volumes)
+server/data/
+server/uploads/
+server/extensions/
+
+# Output files
+.output.txt
