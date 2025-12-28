@@ -6,6 +6,9 @@ import { ProductGrid } from '@/components/product/ProductGrid'
 import { CatalogFilters } from '@/components/catalog/CatalogFilters'
 import type { ProductFilter } from '@/types'
 
+// Revalidate data every 60 seconds (ISR)
+export const revalidate = 60
+
 export const metadata: Metadata = {
   title: 'Каталог товарів | SHTORA',
   description: 'Великий вибір штор, тюлів, карнизів та домашнього текстилю. Знайдіть ідеальний товар для вашого інтер\'єру.',

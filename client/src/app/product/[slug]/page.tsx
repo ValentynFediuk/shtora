@@ -7,6 +7,9 @@ import { getProduct, getRelatedProducts } from '@/lib/directus/client'
 import { ProductGrid } from '@/components/product/ProductGrid'
 import { AddToCartButton } from '@/components/product/AddToCartButton'
 
+// Revalidate data every 60 seconds (ISR)
+export const revalidate = 60
+
 interface ProductPageProps {
   params: { slug: string }
 }

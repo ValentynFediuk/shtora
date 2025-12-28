@@ -4,6 +4,9 @@ import { HeroSection } from '@/components/home/HeroSection'
 import { FeaturesSection } from '@/components/home/FeaturesSection'
 import { getFeaturedProducts, getProducts } from '@/lib/directus/client'
 
+// Revalidate data every 60 seconds (ISR)
+export const revalidate = 60
+
 export default async function HomePage() {
   // Fetch products from Directus
   let products = []
