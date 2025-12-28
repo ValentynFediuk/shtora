@@ -1,13 +1,15 @@
 import Link from 'next/link'
+import { getCategories } from '@/lib/directus/client'
 
-const categories = [
+// Fallback categories if Directus is empty or unavailable
+const fallbackCategories = [
   {
     name: 'Штори',
     slug: 'shtory',
     description: 'Класичні та сучасні штори',
     icon: '🪟',
     color: 'from-amber-100 to-amber-50',
-    count: 1250,
+    count: 0,
   },
   {
     name: 'Тюль',
@@ -15,7 +17,7 @@ const categories = [
     description: 'Легкі та повітряні тюлі',
     icon: '✨',
     color: 'from-blue-100 to-blue-50',
-    count: 890,
+    count: 0,
   },
   {
     name: 'Карнизи',
@@ -23,7 +25,7 @@ const categories = [
     description: 'Металеві та дерев\'яні',
     icon: '🔩',
     color: 'from-gray-100 to-gray-50',
-    count: 456,
+    count: 0,
   },
   {
     name: 'Текстиль',
@@ -31,7 +33,7 @@ const categories = [
     description: 'Подушки, пледи, скатертини',
     icon: '🛋️',
     color: 'from-rose-100 to-rose-50',
-    count: 780,
+    count: 0,
   },
   {
     name: 'Ролети',
@@ -39,7 +41,7 @@ const categories = [
     description: 'Рулонні та римські',
     icon: '📐',
     color: 'from-green-100 to-green-50',
-    count: 320,
+    count: 0,
   },
   {
     name: 'Аксесуари',
@@ -47,11 +49,40 @@ const categories = [
     description: 'Підхвати, гачки, кільця',
     icon: '🎀',
     color: 'from-purple-100 to-purple-50',
-    count: 540,
+    count: 0,
   },
 ]
 
-export function CategorySection() {
+// Color palette for dynamic categories
+const colorPalette = [
+  'from-amber-100 to-amber-50',
+  'from-blue-100 to-blue-50',
+  'from-gray-100 to-gray-50',
+  'from-rose-100 to-rose-50',
+  'from-green-100 to-green-50',
+  'from-purple-100 to-purple-50',
+]
+
+export async function CategorySection() {
+  // Fetch categories from Directus
+  let categories = fallbackCategories
+  
+  try {
+    const directusCategories = await getCategories()
+    if (directusCategories && directusCategories.length > 0) {
+      categories = directusCategories.map((cat, index) => ({
+        name: cat.name,
+        slug: cat.slug,
+        description: cat.description || '',
+        icon: '🏷️',
+        color: colorPalette[index % colorPalette.length],
+        count: cat.productsCount || 0,
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to fetch categories from Directus:', error)
+    // Use fallback categories
+  }
   return (
     <section className="py-12 md:py-16">
       <div className="container">

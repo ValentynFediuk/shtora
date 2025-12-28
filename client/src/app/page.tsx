@@ -2,8 +2,25 @@ import { ProductGrid } from '@/components/product/ProductGrid'
 import { CategorySection } from '@/components/home/CategorySection'
 import { HeroSection } from '@/components/home/HeroSection'
 import { FeaturesSection } from '@/components/home/FeaturesSection'
+import { getFeaturedProducts, getProducts } from '@/lib/directus/client'
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Fetch products from Directus
+  let products = []
+  
+  try {
+    // Try to get featured products first, fallback to all products
+    const featuredProducts = await getFeaturedProducts()
+    if (featuredProducts && featuredProducts.length > 0) {
+      products = featuredProducts
+    } else {
+      const allProducts = await getProducts()
+      products = allProducts.slice(0, 8) // Show first 8 products
+    }
+  } catch (error) {
+    console.error('Failed to fetch products from Directus:', error)
+  }
+
   return (
     <>
       <HeroSection />
@@ -19,7 +36,7 @@ export default function HomePage() {
               Дивитись всі →
             </a>
           </div>
-          <ProductGrid />
+          <ProductGrid products={products.length > 0 ? products : undefined} />
         </div>
       </section>
       <FeaturesSection />

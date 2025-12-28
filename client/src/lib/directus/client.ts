@@ -89,17 +89,20 @@ export function getImageUrl(imageId: string | null): string | null {
 
 // Transform Directus product to app Product type
 function transformProduct(item: DirectusProduct): Product {
+  // Handle category - can be null, string (ID), or object
+  const categoryObj = item.category && typeof item.category === 'object' ? item.category : null
+  
   return {
     id: item.id,
     slug: item.slug,
     name: item.name,
     description: item.description,
-    price: item.price,
-    oldPrice: item.old_price || undefined,
+    price: Number(item.price) || 0,
+    oldPrice: item.old_price ? Number(item.old_price) : undefined,
     image: getImageUrl(item.image),
     images: item.images?.map(getImageUrl).filter(Boolean) as string[] | undefined,
-    category: typeof item.category === 'object' ? item.category.name : undefined,
-    categorySlug: typeof item.category === 'object' ? item.category.slug : undefined,
+    category: categoryObj?.name || undefined,
+    categorySlug: categoryObj?.slug || undefined,
     sku: item.sku,
     material: item.material || undefined,
     color: item.color || undefined,
@@ -108,7 +111,7 @@ function transformProduct(item: DirectusProduct): Product {
     inStock: item.in_stock,
     isNew: item.is_new,
     isHit: item.is_hit,
-    rating: item.rating,
+    rating: Number(item.rating) || 0,
     reviewsCount: item.reviews_count,
     createdAt: item.date_created,
     updatedAt: item.date_updated,
