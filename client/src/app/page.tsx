@@ -3,13 +3,14 @@ import { CategorySection } from '@/components/home/CategorySection'
 import { HeroSection } from '@/components/home/HeroSection'
 import { FeaturesSection } from '@/components/home/FeaturesSection'
 import { getFeaturedProducts, getProducts } from '@/lib/directus/client'
+import type { Product } from '@/types'
 
 // Revalidate data every 60 seconds (ISR)
 export const revalidate = 60
 
 export default async function HomePage() {
   // Fetch products from Directus
-  let products = []
+  let products: Product[] = []
   
   try {
     // Try to get featured products first, fallback to all products
