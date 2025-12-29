@@ -6,6 +6,7 @@ import { ChevronRight, Truck, Shield, RefreshCw } from 'lucide-react'
 import { getProduct, getRelatedProducts, getProductSizeVariants } from '@/lib/directus/client'
 import { ProductGrid } from '@/components/product/ProductGrid'
 import { AddToCartButton } from '@/components/product/AddToCartButton'
+import { SizeSelector } from '@/components/product/SizeSelector'
 
 // Revalidate data every 60 seconds (ISR)
 export const revalidate = 60
@@ -257,6 +258,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </div>
             )}
 
+            {/* Size selector */}
+            <SizeSelector currentProduct={product} sizeVariants={sizeVariants} />
+
             {/* Add to cart */}
             <AddToCartButton product={product} />
 
@@ -293,48 +297,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <h2 className="mb-4 text-xl font-bold">Опис товару</h2>
             <div className="prose max-w-none text-secondary-600">
               <p>{product.description}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Size variants - same product in different sizes */}
-        {sizeVariants.length > 0 && (
-          <div className="mt-12 border-t pt-8">
-            <h2 className="mb-6 text-xl font-bold">Цей товар в інших розмірах</h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {sizeVariants.map((variant) => (
-                <Link
-                  key={variant.id}
-                  href={`/product/${variant.slug}`}
-                  className="group rounded-lg border border-secondary-200 p-3 transition-all hover:border-primary-300 hover:shadow-md"
-                >
-                  <div className="relative mb-2 aspect-square overflow-hidden rounded-md bg-secondary-100">
-                    {variant.image ? (
-                      <Image
-                        src={variant.image}
-                        alt={variant.name}
-                        fill
-                        className="object-cover transition-transform group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <span className="text-3xl opacity-50">🪟</span>
-                      </div>
-                    )}
-                  </div>
-                  <h3 className="mb-1 line-clamp-2 text-sm font-medium text-secondary-900 group-hover:text-primary-600">
-                    {variant.name}
-                  </h3>
-                  {variant.sizes && variant.sizes.length > 0 && (
-                    <p className="mb-1 text-xs text-secondary-500">
-                      Розміри: {variant.sizes.join(', ')}
-                    </p>
-                  )}
-                  <p className="text-sm font-bold text-primary-600">
-                    {variant.price.toLocaleString('uk-UA')} ₴
-                  </p>
-                </Link>
-              ))}
             </div>
           </div>
         )}
