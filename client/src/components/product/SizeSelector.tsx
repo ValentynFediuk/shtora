@@ -40,8 +40,11 @@ function getSizeLabel(product: Product): string {
 }
 
 export function SizeSelector({ currentProduct, sizeVariants }: SizeSelectorProps) {
-  // Якщо немає варіантів - не показуємо селектор
-  if (sizeVariants.length === 0) {
+  const currentSize = getSizeLabel(currentProduct)
+  const hasCurrentSize = currentSize !== 'Стандарт'
+  
+  // Якщо немає варіантів і поточний товар не має розміру - не показуємо
+  if (sizeVariants.length === 0 && !hasCurrentSize) {
     return null
   }
 
@@ -56,7 +59,19 @@ export function SizeSelector({ currentProduct, sizeVariants }: SizeSelectorProps
     return a.name.localeCompare(b.name)
   })
 
-  const currentSize = getSizeLabel(currentProduct)
+  // Якщо є тільки один варіант (поточний товар) - показуємо просто інформацію про розмір
+  if (sortedVariants.length === 1) {
+    return (
+      <div className="mb-6">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-secondary-700">Розмір:</span>
+          <span className="rounded-lg border-2 border-primary-500 bg-primary-50 px-4 py-2 text-sm font-medium text-primary-700">
+            {currentSize}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="mb-6">
