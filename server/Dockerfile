@@ -6,20 +6,20 @@ USER root
 RUN mkdir -p /directus/uploads /directus/extensions && \
     chown -R node:node /directus/uploads /directus/extensions
 
+# Copy entrypoint script
+COPY server/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 USER node
 
-# Environment variables (will be overridden by Railway)
-# KEY and SECRET must be at least 32 characters for Directus to start
-ENV KEY="shtora_key_0123456789abcdef_0123456789abcd"
-ENV SECRET="shtora_secret_0123456789abcdef_0123456"
-ENV ADMIN_EMAIL="admin@shtora.ua"
-ENV ADMIN_PASSWORD="admin123"
+# Default environment variables (will be overridden by Railway)
 ENV DB_CLIENT="pg"
 ENV DB_SSL="true"
 ENV DB_SSL_REJECT_UNAUTHORIZED="false"
 ENV CORS_ENABLED="true"
 ENV CORS_ORIGIN="*"
-ENV PUBLIC_URL="https://your-app.railway.app"
-ENV PORT="8055"
 
+# Expose default Directus port (Railway will override via PORT env var)
 EXPOSE 8055
+
+ENTRYPOINT ["/entrypoint.sh"]
