@@ -1,6 +1,10 @@
 #!/usr/bin/env sh
 set -e
 
+# Вимкнути перевірку SSL сертифікатів для Node.js
+# Це необхідно для Railway PostgreSQL з self-signed сертифікатом
+export NODE_TLS_REJECT_UNAUTHORIZED=0
+
 # Якщо Railway надав PG* — замапимо їх у DB_*
 if [ -n "$PGHOST" ] && [ -z "$DB_HOST" ]; then
   export DB_CLIENT="${DB_CLIENT:-pg}"
