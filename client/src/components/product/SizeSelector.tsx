@@ -45,90 +45,117 @@ function formatSizeLabel(dimensions: { width: number; height: number } | null): 
   return `${dimensions.width}x${dimensions.height}`
 }
 
+// Генерує стандартну сітку розмірів (як на hotto.ua)
+function generateSizeGrid(fixedHeight: number = 1700): { width: number; height: number }[] {
+  const standardWidths = [
+    200, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650, 675, 700, 750,
+    825, 975, 1200, 1300, 1500, 1600, 1700, 1800, 1900, 2000
+  ]
+  return standardWidths.map(w => ({ width: w, height: fixedHeight }))
+}
+
 export function SizeSelector({ currentProduct, sizeVariants }: SizeSelectorProps) {
   const currentDimensions = getSizeDimensions(currentProduct)
   const currentSize = formatSizeLabel(currentDimensions)
   
-  // ЗАВЖДИ показуємо блок з розміром якщо є хоча б один з варіантів:
-  // 1. Є currentSize (з width/height, назви, або sizes)
-  // 2. Є sizeVariants
-  const shouldShow = currentSize !== '' || sizeVariants.length > 0
-
+  // Визначаємо чи є варіанти товару в базі
+  const hasVariantsFromDB = sizeVariants.length > 0
+  
+  // Визначаємо фіксовану висоту (1700 мм за замовчуванням)
+  const fixedHeight = currentDimensions?.height || 1700
+  
+  // Якщо є варіанти з бази - використовуємо їх
+  // Якщо немає - генеруємо стандартну сітку розмірів
+  let allSizes: { width: number; height: number; slug?: string; id?: string; isFromDB: boolean }[] = []
+  
+  if (hasVariantsFromDB) {
+    // Додаємо поточний товар
+    if (currentDimensions) {
+      allSizes.push({
+        ...currentDimensions,
+        slug: currentProduct.slug,
+        id: currentProduct.id,
+        isFromDB: true
+      })
+    }
+    // Додаємо варіанти з бази
+    sizeVariants.forEach(variant => {
+      const dims = getSizeDimensions(variant)
+      if (dims) {
+        allSizes.push({
+          ...dims,
+          slug: variant.slug,
+          id: variant.id,
+          isFromDB: true
+        })
+      }
+    })
+  } else {
+    // Генеруємо стандартну сітку
+    const standardSizes = generateSizeGrid(fixedHeight)
+    allSizes = standardSizes.map(size => ({
+      ...size,
+      isFromDB: false
+    }))
+  }
+  
   // Якщо немає що показувати - не показуємо
-  if (!shouldShow) {
+  if (allSizes.length === 0) {
     return null
   }
-
-  // Якщо немає варіантів але є розмір - показуємо поточний розмір
-  if (sizeVariants.length === 0 && currentSize) {
-    return (
-      <div className="mb-6">
-        <label className="mb-3 block text-sm font-medium text-secondary-700">
-          Ширина x Довжина (мм)
-        </label>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            disabled
-            className="rounded-lg border-2 border-primary-500 bg-white px-3 py-2 text-sm font-medium text-primary-600 cursor-default"
-          >
-            {currentSize}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // Створюємо масив всіх варіантів включаючи поточний товар
-  const allVariants = [currentProduct, ...sizeVariants]
   
-  // Сортуємо за шириною (якщо є) або за назвою
-  const sortedVariants = allVariants.sort((a, b) => {
-    const aDim = getSizeDimensions(a)
-    const bDim = getSizeDimensions(b)
-    if (aDim && bDim) {
-      return aDim.width - bDim.width
-    }
-    if (a.width && b.width) {
-      return a.width - b.width
-    }
-    return a.name.localeCompare(b.name)
-  })
+  // Сортуємо за шириною
+  allSizes.sort((a, b) => a.width - b.width)
+  
+  // Визначаємо поточний вибраний розмір
+  const selectedWidth = currentDimensions?.width
 
   return (
     <div className="mb-6">
-      <label className="mb-3 block text-sm font-medium text-secondary-700">
+      <label className="mb-3 block text-sm font-bold text-secondary-900">
         Ширина x Довжина (мм)
       </label>
       <div className="grid grid-cols-3 gap-2">
-        {sortedVariants.map((variant) => {
-          const dimensions = getSizeDimensions(variant)
-          const sizeLabel = formatSizeLabel(dimensions) || 'Стандарт'
-          const isCurrentSize = variant.id === currentProduct.id
+        {allSizes.map((size, index) => {
+          const sizeLabel = `${size.width}x${size.height}`
+          const isSelected = size.width === selectedWidth
           
-          if (isCurrentSize) {
-            // Поточний розмір - активна кнопка (з рамкою як на hotto.ua)
+          if (isSelected) {
+            // Вибраний розмір - активна кнопка з помаранчевою рамкою (як на hotto.ua)
             return (
               <button
-                key={variant.id}
+                key={size.id || `size-${index}`}
                 type="button"
                 disabled
-                className="rounded-lg border-2 border-primary-500 bg-white px-3 py-2 text-sm font-medium text-primary-600 cursor-default"
+                className="rounded-lg border-2 border-orange-500 bg-white px-3 py-2.5 text-sm font-medium text-orange-500 cursor-default"
               >
                 {sizeLabel}
               </button>
             )
           }
           
-          // Інші розміри - посилання на сторінку товару
+          // Якщо розмір з бази - робимо посилання
+          if (size.isFromDB && size.slug) {
+            return (
+              <Link
+                key={size.id || `size-${index}`}
+                href={`/product/${size.slug}`}
+                className="rounded-lg border border-secondary-300 bg-white px-3 py-2.5 text-center text-sm font-medium text-secondary-600 transition-all hover:border-orange-500 hover:text-orange-500"
+              >
+                {sizeLabel}
+              </Link>
+            )
+          }
+          
+          // Якщо розмір згенерований - просто кнопка (неактивна поки немає в базі)
           return (
-            <Link
-              key={variant.id}
-              href={`/product/${variant.slug}`}
-              className="rounded-lg border border-secondary-300 bg-white px-3 py-2 text-center text-sm font-medium text-secondary-700 transition-all hover:border-primary-500 hover:text-primary-600"
+            <button
+              key={`size-${index}`}
+              type="button"
+              className="rounded-lg border border-secondary-300 bg-white px-3 py-2.5 text-center text-sm font-medium text-secondary-600 transition-all hover:border-orange-500 hover:text-orange-500 cursor-pointer"
             >
               {sizeLabel}
-            </Link>
+            </button>
           )
         })}
       </div>
