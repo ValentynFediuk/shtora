@@ -60,12 +60,23 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound()
   }
 
-  const [relatedProducts, sizeVariants] = await Promise.all([
-    product.categorySlug 
-      ? getRelatedProducts(product.categorySlug, product.id)
-      : Promise.resolve([]),
-    getProductSizeVariants(product),
-  ])
+  // Обгортаємо в try-catch щоб сторінка працювала навіть якщо API частково недоступний
+  let relatedProducts: Awaited<ReturnType<typeof getRelatedProducts>> = []
+  let sizeVariants: Awaited<ReturnType<typeof getProductSizeVariants>> = []
+  
+  try {
+    const results = await Promise.all([
+      product.categorySlug 
+        ? getRelatedProducts(product.categorySlug, product.id)
+        : Promise.resolve([]),
+      getProductSizeVariants(product),
+    ])
+    relatedProducts = results[0]
+    sizeVariants = results[1]
+  } catch (error) {
+    console.error('Error fetching related products or size variants:', error)
+    // Продовжуємо з порожніми масивами
+  }
 
   const discount = product.oldPrice
     ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
