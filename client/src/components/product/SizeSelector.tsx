@@ -20,10 +20,15 @@ function extractSizeFromName(name: string): string | null {
 
 // Витягує розмір з поля sizes або width/height
 function getSizeLabel(product: Product): string {
-  // Спочатку пробуємо витягти з назви
+  // Спочатку з width/height (найнадійніше джерело)
+  if (product.width && product.height) {
+    return `${product.width}×${product.height} см`
+  }
+  
+  // Потім пробуємо витягти з назви
   const sizeFromName = extractSizeFromName(product.name)
   if (sizeFromName) {
-    return sizeFromName
+    return `${sizeFromName} см`
   }
   
   // Потім з поля sizes
@@ -31,17 +36,12 @@ function getSizeLabel(product: Product): string {
     return product.sizes[0]
   }
   
-  // Потім з width/height
-  if (product.width && product.height) {
-    return `${product.width}×${product.height}`
-  }
-  
-  return 'Стандарт'
+  return ''
 }
 
 export function SizeSelector({ currentProduct, sizeVariants }: SizeSelectorProps) {
   const currentSize = getSizeLabel(currentProduct)
-  const hasCurrentSize = currentSize !== 'Стандарт'
+  const hasCurrentSize = currentSize !== ''
   
   // Якщо немає варіантів і поточний товар не має розміру - не показуємо
   if (sizeVariants.length === 0 && !hasCurrentSize) {
