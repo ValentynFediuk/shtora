@@ -262,10 +262,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </div>
             )}
 
-            {/* Size selector - показуємо тільки якщо немає калькулятора */}
-            {!product.pricePerSqm && !product.fixedHeight && (
-              <SizeSelector currentProduct={product} sizeVariants={sizeVariants} />
-            )}
+            {/* Size selector - показуємо завжди якщо є варіанти розмірів */}
+            <SizeSelector currentProduct={product} sizeVariants={sizeVariants} />
 
             {/* Калькулятор + кнопка додавання в кошик */}
             <ProductPurchaseSection product={product} />
