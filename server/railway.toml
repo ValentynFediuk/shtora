@@ -1,8 +1,0 @@
-[build]
-builder = "dockerfile"
-dockerfilePath = "./Dockerfile"
-
-[deploy]
-healthcheckPath = "/server/health"
-healthcheckTimeout = 300
-startCommand = "node /directus/cli.js bootstrap && node /directus/cli.js start"

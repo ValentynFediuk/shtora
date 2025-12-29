@@ -36,3 +36,7 @@ server/extensions/
 
 # Output files
 .output.txt
+
+# Large data files
+*.csv
+scripts/*.csv

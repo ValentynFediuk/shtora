@@ -1,0 +1,17 @@
+{
+  "name": "shtora-import-scripts",
+  "version": "1.0.0",
+  "description": "Скрипти імпорту даних для SHTORA",
+  "type": "module",
+  "scripts": {
+    "import:products": "node import_products.js",
+    "import:products:dry": "DRY_RUN=true node import_products.js"
+  },
+  "dependencies": {
+    "@directus/sdk": "^15.0.0",
+    "csv-parse": "^5.5.3",
+    "iconv-lite": "^0.6.3",
+    "p-limit": "^5.0.0",
+    "slugify": "^1.6.6"
+  }
+}
