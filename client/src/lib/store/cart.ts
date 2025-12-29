@@ -10,8 +10,8 @@ interface CartState {
   
   // Actions
   addItem: (item: CartItem) => void
-  removeItem: (id: string) => void
-  updateQuantity: (id: string, quantity: number) => void
+  removeItem: (id: string, size?: string) => void
+  updateQuantity: (id: string, quantity: number, size?: string) => void
   clearCart: () => void
   openCart: () => void
   closeCart: () => void
@@ -20,7 +20,7 @@ interface CartState {
   // Computed
   getTotal: () => number
   getItemsCount: () => number
-  getItemById: (id: string) => CartItem | undefined
+  getItemById: (id: string, size?: string) => CartItem | undefined
 }
 
 export const useCartStore = create<CartState>()(
@@ -49,21 +49,21 @@ export const useCartStore = create<CartState>()(
         })
       },
 
-      removeItem: (id) => {
+      removeItem: (id, size) => {
         set((state) => ({
-          items: state.items.filter((item) => item.id !== id),
+          items: state.items.filter((item) => !(item.id === id && item.size === size)),
         }))
       },
 
-      updateQuantity: (id, quantity) => {
+      updateQuantity: (id, quantity, size) => {
         if (quantity <= 0) {
-          get().removeItem(id)
+          get().removeItem(id, size)
           return
         }
 
         set((state) => ({
           items: state.items.map((item) =>
-            item.id === id ? { ...item, quantity } : item
+            item.id === id && item.size === size ? { ...item, quantity } : item
           ),
         }))
       },
@@ -87,8 +87,8 @@ export const useCartStore = create<CartState>()(
         return get().items.reduce((count, item) => count + item.quantity, 0)
       },
 
-      getItemById: (id) => {
-        return get().items.find((item) => item.id === id)
+      getItemById: (id, size) => {
+        return get().items.find((item) => item.id === id && item.size === size)
       },
     }),
     {

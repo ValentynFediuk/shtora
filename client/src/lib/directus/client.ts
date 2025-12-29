@@ -23,6 +23,7 @@ interface DirectusProduct {
   sku: string
   material: string | null
   color: string | null
+  sizes: string[] | null
   width: number | null
   height: number | null
   in_stock: boolean
@@ -106,6 +107,7 @@ function transformProduct(item: DirectusProduct): Product {
     sku: item.sku,
     material: item.material || undefined,
     color: item.color || undefined,
+    sizes: item.sizes || undefined,
     width: item.width || undefined,
     height: item.height || undefined,
     inStock: item.in_stock,
@@ -159,6 +161,9 @@ export async function getProducts(filter?: ProductFilter): Promise<Product[]> {
     if (filter?.search) {
       queryFilter['name'] = { _contains: filter.search }
     }
+    if (filter?.sizes && filter.sizes.length > 0) {
+      queryFilter['sizes'] = { _contains: filter.sizes[0] }
+    }
 
     const sortMap: Record<string, string> = {
       price_asc: 'price',
@@ -197,11 +202,26 @@ export async function getProduct(slug: string): Promise<Product | null> {
       })
     )
 
-    if (items.length === 0) return null
-    return transformProduct(items[0] as unknown as DirectusProduct)
+    if (Array.isArray(items) && items.length > 0) {
+      return transformProduct(items[0] as unknown as DirectusProduct)
+    }
+
+    // Fallback: спробувати знайти товар без фільтра статусу (для draft товарів)
+    const fallback = await directus.request(
+      readItems('products', {
+        filter: { slug: { _eq: slug } },
+        limit: 1,
+        fields: ['*', { category: ['id', 'slug', 'name'] }],
+      })
+    )
+    if (Array.isArray(fallback) && fallback.length > 0) {
+      return transformProduct(fallback[0] as unknown as DirectusProduct)
+    }
+
+    return null
   } catch (error) {
     console.error('Error fetching product:', error)
-    return null
+    throw error // Кидаємо помилку замість повернення null, щоб відрізнити "не знайдено" від "помилка API"
   }
 }
 
@@ -264,6 +284,86 @@ export async function getRelatedProducts(categorySlug: string, excludeId: string
     return (items as unknown as DirectusProduct[]).map(transformProduct)
   } catch (error) {
     console.error('Error fetching related products:', error)
+    return []
+  }
+}
+
+export async function getAvailableSizes(): Promise<string[]> {
+  try {
+    const items = await directus.request(
+      readItems('products', {
+        filter: { status: { _eq: 'published' } },
+        fields: ['sizes'],
+        limit: -1,
+      })
+    )
+
+    const allSizes = new Set<string>()
+    ;(items as unknown as { sizes: string[] | null }[]).forEach((item) => {
+      if (item.sizes && Array.isArray(item.sizes)) {
+        item.sizes.forEach((size) => allSizes.add(size))
+      }
+    })
+
+    return Array.from(allSizes).sort()
+  } catch (error) {
+    console.error('Error fetching available sizes:', error)
+    return []
+  }
+}
+
+// Отримати варіанти товару з різними розмірами (товари з тієї ж категорії з схожою назвою)
+export async function getProductSizeVariants(product: Product): Promise<Product[]> {
+  try {
+    if (!product.categorySlug) return []
+
+    // Отримуємо базову назву товару (без розмірів та чисел в кінці)
+    const baseName = product.name
+      .replace(/\s*\d+\s*[xх×]\s*\d+\s*(см|мм|м)?/gi, '') // видаляємо розміри типу "100x200 см"
+      .replace(/\s*[-–]\s*\d+\s*(см|мм|м)?/gi, '') // видаляємо розміри типу "- 100 см"
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    // Шукаємо товари з тієї ж категорії
+    const items = await directus.request(
+      readItems('products', {
+        filter: {
+          status: { _eq: 'published' },
+          category: { slug: { _eq: product.categorySlug } },
+          id: { _neq: product.id },
+        },
+        limit: 10,
+        fields: ['*', { category: ['id', 'slug', 'name'] }],
+      })
+    )
+
+    const products = (items as unknown as DirectusProduct[]).map(transformProduct)
+
+    // Фільтруємо товари з схожою базовою назвою
+    const variants = products.filter((p) => {
+      const pBaseName = p.name
+        .replace(/\s*\d+\s*[xх×]\s*\d+\s*(см|мм|м)?/gi, '')
+        .replace(/\s*[-–]\s*\d+\s*(см|мм|м)?/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+      // Перевіряємо схожість назв (одна містить іншу або співпадають)
+      return (
+        pBaseName.toLowerCase() === baseName.toLowerCase() ||
+        pBaseName.toLowerCase().includes(baseName.toLowerCase()) ||
+        baseName.toLowerCase().includes(pBaseName.toLowerCase())
+      )
+    })
+
+    // Якщо знайшли варіанти з схожою назвою - повертаємо їх
+    if (variants.length > 0) {
+      return variants
+    }
+
+    // Якщо не знайшли - повертаємо товари з тієї ж категорії з різними розмірами
+    return products.filter((p) => p.sizes && p.sizes.length > 0).slice(0, 4)
+  } catch (error) {
+    console.error('Error fetching product size variants:', error)
     return []
   }
 }

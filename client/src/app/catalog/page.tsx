@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, SlidersHorizontal } from 'lucide-react'
-import { getProducts, getCategories } from '@/lib/directus/client'
+import { getProducts, getCategories, getAvailableSizes } from '@/lib/directus/client'
 import { ProductGrid } from '@/components/product/ProductGrid'
 import { CatalogFilters } from '@/components/catalog/CatalogFilters'
 import type { ProductFilter } from '@/types'
@@ -22,6 +22,7 @@ interface CatalogPageProps {
     inStock?: string
     isNew?: string
     isHit?: string
+    sizes?: string
     sort?: string
     page?: string
   }
@@ -35,14 +36,16 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
     inStock: searchParams.inStock === 'true' ? true : undefined,
     isNew: searchParams.isNew === 'true' ? true : undefined,
     isHit: searchParams.isHit === 'true' ? true : undefined,
+    sizes: searchParams.sizes ? searchParams.sizes.split(',').filter(Boolean) : undefined,
     sort: searchParams.sort as ProductFilter['sort'],
     page: searchParams.page ? Number(searchParams.page) : 1,
     limit: 12,
   }
 
-  const [products, categories] = await Promise.all([
+  const [products, categories, availableSizes] = await Promise.all([
     getProducts(filter),
     getCategories(),
+    getAvailableSizes(),
   ])
 
   const sortOptions = [
@@ -103,7 +106,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
         <div className="grid gap-8 lg:grid-cols-4">
           {/* Filters sidebar */}
           <aside className="hidden lg:block">
-            <CatalogFilters categories={categories} currentFilter={filter} />
+            <CatalogFilters categories={categories} currentFilter={filter} availableSizes={availableSizes} />
           </aside>
 
           {/* Products */}

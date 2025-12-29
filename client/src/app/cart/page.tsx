@@ -88,7 +88,7 @@ export default function CartPage() {
               <div className="divide-y divide-secondary-200">
                 {items.map((item) => (
                   <div
-                    key={item.id}
+                    key={`${item.id}-${item.size || ''}`}
                     className="grid gap-4 p-4 md:grid-cols-12 md:items-center md:gap-4 md:p-6"
                   >
                     {/* Product */}
@@ -109,7 +109,7 @@ export default function CartPage() {
                       </div>
                       <div className="flex flex-col justify-center">
                         <Link
-                          href={`/product/${item.id}`}
+                          href={item.slug ? `/product/${item.slug}` : '/catalog'}
                           className="font-medium hover:text-primary-600"
                         >
                           {item.name}
@@ -123,7 +123,7 @@ export default function CartPage() {
                         )}
                         <button
                           type="button"
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => removeItem(item.id, item.size)}
                           className="mt-2 flex items-center gap-1 text-sm text-red-500 hover:text-red-600 md:hidden"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -145,7 +145,7 @@ export default function CartPage() {
                       <div className="flex items-center rounded-lg border border-secondary-300">
                         <button
                           type="button"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.id, item.quantity - 1, item.size)}
                           className="flex h-8 w-8 items-center justify-center text-secondary-600 hover:bg-secondary-50"
                         >
                           <Minus className="h-3 w-3" />
@@ -153,7 +153,7 @@ export default function CartPage() {
                         <span className="w-8 text-center text-sm">{item.quantity}</span>
                         <button
                           type="button"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.id, item.quantity + 1, item.size)}
                           className="flex h-8 w-8 items-center justify-center text-secondary-600 hover:bg-secondary-50"
                         >
                           <Plus className="h-3 w-3" />
@@ -172,7 +172,7 @@ export default function CartPage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => removeItem(item.id, item.size)}
                           className="hidden p-1 text-secondary-400 hover:text-red-500 md:block"
                         >
                           <Trash2 className="h-4 w-4" />

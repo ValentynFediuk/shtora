@@ -18,7 +18,7 @@ export interface Product {
   sku?: string
   material?: string
   color?: string
-  size?: string
+  sizes?: string[]
   width?: number
   height?: number
   weight?: number
@@ -45,6 +45,7 @@ export interface Category {
 // Cart types
 export interface CartItem {
   id: string
+  slug: string
   name: string
   price: number
   image: string | null
@@ -175,6 +176,7 @@ export interface ProductFilter {
   isHit?: boolean
   colors?: string[]
   materials?: string[]
+  sizes?: string[]
   sort?: 'price_asc' | 'price_desc' | 'newest' | 'popular' | 'rating'
   page?: number
   limit?: number

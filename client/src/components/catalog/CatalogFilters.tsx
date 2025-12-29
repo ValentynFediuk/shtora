@@ -7,14 +7,38 @@ import type { Category, ProductFilter } from '@/types'
 interface CatalogFiltersProps {
   categories: Category[]
   currentFilter: ProductFilter
+  availableSizes?: string[]
 }
 
-export function CatalogFilters({ categories, currentFilter }: CatalogFiltersProps) {
+export function CatalogFilters({ categories, currentFilter, availableSizes = [] }: CatalogFiltersProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const [minPrice, setMinPrice] = useState(currentFilter.minPrice?.toString() || '')
   const [maxPrice, setMaxPrice] = useState(currentFilter.maxPrice?.toString() || '')
+
+  const selectedSizes = currentFilter.sizes || []
+
+  const toggleSize = (size: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    const currentSizes = params.get('sizes')?.split(',').filter(Boolean) || []
+    
+    let newSizes: string[]
+    if (currentSizes.includes(size)) {
+      newSizes = currentSizes.filter((s) => s !== size)
+    } else {
+      newSizes = [...currentSizes, size]
+    }
+
+    if (newSizes.length > 0) {
+      params.set('sizes', newSizes.join(','))
+    } else {
+      params.delete('sizes')
+    }
+
+    params.delete('page')
+    router.push(`/catalog?${params.toString()}`)
+  }
 
   const updateFilter = (key: string, value: string | boolean | null) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -60,7 +84,8 @@ export function CatalogFilters({ categories, currentFilter }: CatalogFiltersProp
     currentFilter.maxPrice ||
     currentFilter.inStock ||
     currentFilter.isNew ||
-    currentFilter.isHit
+    currentFilter.isHit ||
+    (currentFilter.sizes && currentFilter.sizes.length > 0)
 
   return (
     <div className="space-y-6">
@@ -143,6 +168,29 @@ export function CatalogFilters({ categories, currentFilter }: CatalogFiltersProp
           Застосувати
         </button>
       </div>
+
+      {/* Sizes */}
+      {availableSizes.length > 0 && (
+        <div>
+          <h3 className="mb-3 font-semibold">Розміри</h3>
+          <div className="flex flex-wrap gap-2">
+            {availableSizes.map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => toggleSize(size)}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  selectedSizes.includes(size)
+                    ? 'border-primary-500 bg-primary-50 font-medium text-primary-700'
+                    : 'border-secondary-300 text-secondary-600 hover:border-primary-300 hover:bg-primary-50'
+                }`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Availability */}
       <div>

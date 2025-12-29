@@ -21,6 +21,7 @@ export function ProductCard({ product }: ProductCardProps) {
     e.preventDefault()
     addItem({
       id: product.id,
+      slug: product.slug,
       name: product.name,
       price: product.price,
       image: product.image,
@@ -131,6 +132,20 @@ export function ProductCard({ product }: ProductCardProps) {
             </span>
           )}
         </div>
+
+        {/* Sizes */}
+        {product.sizes && product.sizes.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {product.sizes.map((size) => (
+              <span
+                key={size}
+                className="rounded border border-secondary-200 bg-secondary-50 px-2 py-0.5 text-xs text-secondary-600"
+              >
+                {size}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Availability */}
         {product.inStock !== undefined && (

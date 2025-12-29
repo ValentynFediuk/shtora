@@ -11,6 +11,9 @@ interface AddToCartButtonProps {
 
 export function AddToCartButton({ product }: AddToCartButtonProps) {
   const [quantity, setQuantity] = useState(1)
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(
+    product.sizes && product.sizes.length > 0 ? product.sizes[0] : undefined
+  )
   const [isAdded, setIsAdded] = useState(false)
   const addItem = useCartStore((state) => state.addItem)
 
@@ -21,20 +24,47 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
   const handleAddToCart = () => {
     addItem({
       id: product.id,
+      slug: product.slug,
       name: product.name,
       price: product.price,
       image: product.image,
       quantity: quantity,
+      size: selectedSize,
     })
 
     setIsAdded(true)
     setTimeout(() => setIsAdded(false), 2000)
   }
 
-  const isDisabled = !product.inStock
+  const isDisabled = !product.inStock || (product.sizes && product.sizes.length > 0 && !selectedSize)
 
   return (
     <div className="space-y-4">
+      {/* Size selector */}
+      {product.sizes && product.sizes.length > 0 && (
+        <div>
+          <label className="mb-2 block text-sm font-medium text-secondary-700">
+            Розмір:
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {product.sizes.map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => setSelectedSize(size)}
+                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                  selectedSize === size
+                    ? 'border-primary-500 bg-primary-50 text-primary-700'
+                    : 'border-secondary-300 text-secondary-700 hover:border-primary-300 hover:bg-primary-50'
+                }`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Quantity selector */}
       <div className="flex items-center gap-4">
         <span className="text-secondary-600">Кількість:</span>
