@@ -95,15 +95,19 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <Link href="/catalog" className="hover:text-primary-600">
             Каталог
           </Link>
-          {product.category && (
+          {(product.category || product.categorySlug) && (
             <>
               <ChevronRight className="h-4 w-4" />
-              <Link
-                href={`/catalog/${product.categorySlug}`}
-                className="hover:text-primary-600"
-              >
-                {product.category}
-              </Link>
+              {product.categorySlug ? (
+                <Link
+                  href={`/catalog/${product.categorySlug}`}
+                  className="hover:text-primary-600"
+                >
+                  {product.category || 'Категорія'}
+                </Link>
+              ) : (
+                <span className="text-secondary-600">{product.category}</span>
+              )}
             </>
           )}
           <ChevronRight className="h-4 w-4" />

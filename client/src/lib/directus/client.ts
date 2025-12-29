@@ -90,9 +90,27 @@ const directusUrl = process.env.DIRECTUS_URL || 'http://localhost:8055'
 export const directus = createDirectus<DirectusSchema>(directusUrl).with(rest())
 
 // Helper function to get image URL
-export function getImageUrl(imageId: string | null): string | null {
-  if (!imageId) return null
-  return `${directusUrl}/assets/${imageId}`
+// Handles: Directus asset IDs, full URLs (http/https), and relative paths
+export function getImageUrl(source: string | null): string | null {
+  if (!source) return null
+  
+  // If already a full URL, return as is
+  if (source.startsWith('http://') || source.startsWith('https://')) {
+    return source
+  }
+  
+  // If it's a root-relative path (starts with /), prefix with Directus URL
+  if (source.startsWith('/')) {
+    return `${directusUrl}${source}`
+  }
+  
+  // If it already contains '/assets/', it's likely a path - prefix domain
+  if (source.includes('/assets/')) {
+    return `${directusUrl}/${source}`
+  }
+  
+  // Otherwise, treat as Directus asset ID
+  return `${directusUrl}/assets/${source}`
 }
 
 // Transform Directus product to app Product type
