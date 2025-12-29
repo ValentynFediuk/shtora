@@ -18,89 +18,76 @@ function extractSizeFromName(name: string): { width: number; height: number } | 
   return null
 }
 
-// Витягує ширину та висоту з продукту (в мм для відображення)
+// Витягує ширину та висоту з продукту (в см)
 function getSizeDimensions(product: Product): { width: number; height: number } | null {
-  // Спочатку з width/height (найнадійніше джерело) - конвертуємо см в мм
+  // Спочатку з width/height (найнадійніше джерело)
   if (product.width && product.height) {
-    return { width: product.width * 10, height: product.height * 10 }
+    return { width: product.width, height: product.height }
   }
   
   // Потім пробуємо витягти з назви
   const sizeFromName = extractSizeFromName(product.name)
   if (sizeFromName) {
-    // Якщо числа < 30, швидше за все це см, конвертуємо в мм
-    // Якщо >= 30, швидше за все вже в мм
-    if (sizeFromName.width < 30) {
-      return { width: sizeFromName.width * 10, height: sizeFromName.height * 10 }
-    }
     return sizeFromName
   }
   
   return null
 }
 
-// Форматує розмір у вигляді "200x1700"
-function formatSizeLabel(dimensions: { width: number; height: number } | null): string {
-  if (!dimensions) return ''
-  return `${dimensions.width}x${dimensions.height}`
-}
-
-// Генерує стандартну сітку розмірів (як на hotto.ua)
-function generateSizeGrid(fixedHeight: number = 1700): { width: number; height: number }[] {
-  const standardWidths = [
-    200, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650, 675, 700, 750,
-    825, 975, 1200, 1300, 1500, 1600, 1700, 1800, 1900, 2000
-  ]
-  return standardWidths.map(w => ({ width: w, height: fixedHeight }))
+interface SizeOption {
+  width: number
+  height: number
+  slug?: string
+  id?: string
+  price?: number
+  isFromDB: boolean
 }
 
 export function SizeSelector({ currentProduct, sizeVariants }: SizeSelectorProps) {
   const currentDimensions = getSizeDimensions(currentProduct)
-  const currentSize = formatSizeLabel(currentDimensions)
   
   // Визначаємо чи є варіанти товару в базі
   const hasVariantsFromDB = sizeVariants.length > 0
   
-  // Визначаємо фіксовану висоту (1700 мм за замовчуванням)
-  const fixedHeight = currentDimensions?.height || 1700
+  // Якщо немає варіантів з бази - не показуємо селектор
+  if (!hasVariantsFromDB && !currentDimensions) {
+    return null
+  }
   
-  // Якщо є варіанти з бази - використовуємо їх
-  // Якщо немає - генеруємо стандартну сітку розмірів
-  let allSizes: { width: number; height: number; slug?: string; id?: string; isFromDB: boolean }[] = []
+  // Збираємо всі розміри з цінами
+  let allSizes: SizeOption[] = []
   
-  if (hasVariantsFromDB) {
-    // Додаємо поточний товар
-    if (currentDimensions) {
-      allSizes.push({
-        ...currentDimensions,
-        slug: currentProduct.slug,
-        id: currentProduct.id,
-        isFromDB: true
-      })
-    }
-    // Додаємо варіанти з бази
-    sizeVariants.forEach(variant => {
-      const dims = getSizeDimensions(variant)
-      if (dims) {
+  // Додаємо поточний товар
+  if (currentDimensions) {
+    allSizes.push({
+      ...currentDimensions,
+      slug: currentProduct.slug,
+      id: currentProduct.id,
+      price: currentProduct.price,
+      isFromDB: true
+    })
+  }
+  
+  // Додаємо варіанти з бази
+  sizeVariants.forEach(variant => {
+    const dims = getSizeDimensions(variant)
+    if (dims) {
+      // Перевіряємо чи вже є такий розмір
+      const exists = allSizes.some(s => s.width === dims.width && s.height === dims.height)
+      if (!exists) {
         allSizes.push({
           ...dims,
           slug: variant.slug,
           id: variant.id,
+          price: variant.price,
           isFromDB: true
         })
       }
-    })
-  } else {
-    // Генеруємо стандартну сітку
-    const standardSizes = generateSizeGrid(fixedHeight)
-    allSizes = standardSizes.map(size => ({
-      ...size,
-      isFromDB: false
-    }))
-  }
+    }
+  })
   
   // Якщо немає що показувати - не показуємо
-  if (allSizes.length === 0) {
+  if (allSizes.length <= 1) {
     return null
   }
   
@@ -110,27 +97,38 @@ export function SizeSelector({ currentProduct, sizeVariants }: SizeSelectorProps
   // Визначаємо поточний вибраний розмір
   const selectedWidth = currentDimensions?.width
 
+  // Форматування ціни
+  const formatPrice = (price?: number) => {
+    if (!price) return ''
+    return price.toLocaleString('uk-UA')
+  }
+
   return (
     <div className="mb-6">
       <label className="mb-3 block text-sm font-bold text-secondary-900">
-        Ширина x Довжина (мм)
+        Оберіть розмір (ширина × висота, см)
       </label>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {allSizes.map((size, index) => {
-          const sizeLabel = `${size.width}x${size.height}`
-          const isSelected = size.width === selectedWidth
+          const sizeLabel = `${size.width}×${size.height}`
+          const isSelected = size.width === selectedWidth && size.height === currentDimensions?.height
           
           if (isSelected) {
-            // Вибраний розмір - активна кнопка з помаранчевою рамкою (як на hotto.ua)
+            // Вибраний розмір - активна кнопка з помаранчевою рамкою
             return (
-              <button
+              <div
                 key={size.id || `size-${index}`}
-                type="button"
-                disabled
-                className="rounded-lg border-2 border-orange-500 bg-white px-3 py-2.5 text-sm font-medium text-orange-500 cursor-default"
+                className="rounded-lg border-2 border-orange-500 bg-orange-50 px-3 py-2.5 text-center cursor-default"
               >
-                {sizeLabel}
-              </button>
+                <div className="text-sm font-semibold text-orange-600">
+                  {sizeLabel}
+                </div>
+                {size.price && (
+                  <div className="text-xs font-bold text-orange-700 mt-0.5">
+                    {formatPrice(size.price)} ₴
+                  </div>
+                )}
+              </div>
             )
           }
           
@@ -140,25 +138,41 @@ export function SizeSelector({ currentProduct, sizeVariants }: SizeSelectorProps
               <Link
                 key={size.id || `size-${index}`}
                 href={`/product/${size.slug}`}
-                className="rounded-lg border border-secondary-300 bg-white px-3 py-2.5 text-center text-sm font-medium text-secondary-600 transition-all hover:border-orange-500 hover:text-orange-500"
+                className="rounded-lg border border-secondary-200 bg-white px-3 py-2.5 text-center transition-all hover:border-orange-400 hover:bg-orange-50 group"
               >
-                {sizeLabel}
+                <div className="text-sm font-medium text-secondary-700 group-hover:text-orange-600">
+                  {sizeLabel}
+                </div>
+                {size.price && (
+                  <div className="text-xs font-semibold text-secondary-500 group-hover:text-orange-600 mt-0.5">
+                    {formatPrice(size.price)} ₴
+                  </div>
+                )}
               </Link>
             )
           }
           
-          // Якщо розмір згенерований - просто кнопка (неактивна поки немає в базі)
+          // Якщо розмір без slug - неактивна кнопка
           return (
-            <button
+            <div
               key={`size-${index}`}
-              type="button"
-              className="rounded-lg border border-secondary-300 bg-white px-3 py-2.5 text-center text-sm font-medium text-secondary-600 transition-all hover:border-orange-500 hover:text-orange-500 cursor-pointer"
+              className="rounded-lg border border-secondary-200 bg-secondary-50 px-3 py-2.5 text-center opacity-50 cursor-not-allowed"
             >
-              {sizeLabel}
-            </button>
+              <div className="text-sm font-medium text-secondary-400">
+                {sizeLabel}
+              </div>
+              {size.price && (
+                <div className="text-xs text-secondary-400 mt-0.5">
+                  {formatPrice(size.price)} ₴
+                </div>
+              )}
+            </div>
           )
         })}
       </div>
+      <p className="mt-2 text-xs text-secondary-500">
+        Натисніть на потрібний розмір для перегляду ціни
+      </p>
     </div>
   )
 }
