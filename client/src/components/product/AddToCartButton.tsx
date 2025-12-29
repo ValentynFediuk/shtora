@@ -7,15 +7,35 @@ import type { Product } from '@/types'
 
 interface AddToCartButtonProps {
   product: Product
+  // Калькулятор ціни (опціонально)
+  calculatedPrice?: number
+  customWidth?: number
+  customHeight?: number
 }
 
-export function AddToCartButton({ product }: AddToCartButtonProps) {
+export function AddToCartButton({ 
+  product, 
+  calculatedPrice, 
+  customWidth, 
+  customHeight 
+}: AddToCartButtonProps) {
   const [quantity, setQuantity] = useState(1)
   const [selectedSize, setSelectedSize] = useState<string | undefined>(
     product.sizes && product.sizes.length > 0 ? product.sizes[0] : undefined
   )
   const [isAdded, setIsAdded] = useState(false)
   const addItem = useCartStore((state) => state.addItem)
+
+  // Визначаємо чи використовується калькулятор
+  const hasCalculator = !!product.pricePerSqm || !!product.fixedHeight
+  
+  // Фінальна ціна (від калькулятора або базова)
+  const finalPrice = calculatedPrice ?? product.price
+  
+  // Розмір для відображення в кошику
+  const sizeLabel = customWidth && customHeight 
+    ? `${customWidth}×${customHeight} см` 
+    : selectedSize
 
   const handleQuantityChange = (delta: number) => {
     setQuantity((prev) => Math.max(1, prev + delta))
@@ -26,22 +46,25 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
       id: product.id,
       slug: product.slug,
       name: product.name,
-      price: product.price,
+      price: finalPrice,
       image: product.image,
       quantity: quantity,
-      size: selectedSize,
+      size: sizeLabel,
+      customWidth: customWidth,
+      customHeight: customHeight,
     })
 
     setIsAdded(true)
     setTimeout(() => setIsAdded(false), 2000)
   }
 
-  const isDisabled = !product.inStock || (product.sizes && product.sizes.length > 0 && !selectedSize)
+  // Для калькулятора не потрібно вибирати розмір — він вже вибраний
+  const isDisabled = !product.inStock || (!hasCalculator && product.sizes && product.sizes.length > 0 && !selectedSize)
 
   return (
     <div className="space-y-4">
-      {/* Size selector */}
-      {product.sizes && product.sizes.length > 0 && (
+      {/* Size selector - показуємо тільки якщо немає калькулятора */}
+      {!hasCalculator && product.sizes && product.sizes.length > 0 && (
         <div>
           <label className="mb-2 block text-sm font-medium text-secondary-700">
             Розмір:
@@ -119,15 +142,22 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
         <div className="flex items-center justify-between">
           <span className="text-secondary-600">Разом:</span>
           <span className="text-2xl font-bold text-primary-600">
-            {(product.price * quantity).toLocaleString('uk-UA')} ₴
+            {(finalPrice * quantity).toLocaleString('uk-UA')} ₴
           </span>
         </div>
-        {product.oldPrice && (
+        {/* Показуємо економію тільки якщо немає калькулятора і є стара ціна */}
+        {!hasCalculator && product.oldPrice && (
           <div className="mt-1 flex items-center justify-between text-sm">
             <span className="text-secondary-500">Економія:</span>
             <span className="font-medium text-green-600">
               {((product.oldPrice - product.price) * quantity).toLocaleString('uk-UA')} ₴
             </span>
+          </div>
+        )}
+        {/* Показуємо вибраний розмір для калькулятора */}
+        {hasCalculator && sizeLabel && (
+          <div className="mt-1 text-sm text-secondary-500">
+            Розмір: {sizeLabel}
           </div>
         )}
       </div>

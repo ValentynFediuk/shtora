@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ChevronRight, Truck, Shield, RefreshCw } from 'lucide-react'
 import { getProduct, getRelatedProducts, getProductSizeVariants } from '@/lib/directus/client'
 import { ProductGrid } from '@/components/product/ProductGrid'
-import { AddToCartButton } from '@/components/product/AddToCartButton'
+import { ProductPurchaseSection } from '@/components/product/ProductPurchaseSection'
 import { SizeSelector } from '@/components/product/SizeSelector'
 
 // Revalidate data every 60 seconds (ISR)
@@ -258,11 +258,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </div>
             )}
 
-            {/* Size selector */}
-            <SizeSelector currentProduct={product} sizeVariants={sizeVariants} />
+            {/* Size selector - показуємо тільки якщо немає калькулятора */}
+            {!product.pricePerSqm && !product.fixedHeight && (
+              <SizeSelector currentProduct={product} sizeVariants={sizeVariants} />
+            )}
 
-            {/* Add to cart */}
-            <AddToCartButton product={product} />
+            {/* Калькулятор + кнопка додавання в кошик */}
+            <ProductPurchaseSection product={product} />
 
             {/* Features */}
             <div className="mt-8 grid gap-4 border-t pt-6 sm:grid-cols-3">

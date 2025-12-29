@@ -33,6 +33,13 @@ interface DirectusProduct {
   reviews_count: number
   date_created: string
   date_updated: string
+  // Калькулятор ціни
+  price_per_sqm: number | null
+  min_width: number | null
+  max_width: number | null
+  min_height: number | null
+  max_height: number | null
+  fixed_height: number | null
 }
 
 interface DirectusCategory {
@@ -117,6 +124,13 @@ function transformProduct(item: DirectusProduct): Product {
     reviewsCount: item.reviews_count,
     createdAt: item.date_created,
     updatedAt: item.date_updated,
+    // Калькулятор ціни
+    pricePerSqm: item.price_per_sqm ? Number(item.price_per_sqm) : undefined,
+    minWidth: item.min_width ? Number(item.min_width) : undefined,
+    maxWidth: item.max_width ? Number(item.max_width) : undefined,
+    minHeight: item.min_height ? Number(item.min_height) : undefined,
+    maxHeight: item.max_height ? Number(item.max_height) : undefined,
+    fixedHeight: item.fixed_height ? Number(item.fixed_height) : undefined,
   }
 }
 

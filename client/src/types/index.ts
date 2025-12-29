@@ -25,6 +25,13 @@ export interface Product {
   attributes?: ProductAttribute[]
   createdAt?: string
   updatedAt?: string
+  // Калькулятор ціни
+  pricePerSqm?: number // Ціна за квадратний метр (для калькулятора)
+  minWidth?: number // Мінімальна ширина (см)
+  maxWidth?: number // Максимальна ширина (см)
+  minHeight?: number // Мінімальна висота (см)
+  maxHeight?: number // Максимальна висота (см)
+  fixedHeight?: number // Фіксована висота (см) - для римських штор
 }
 
 export interface ProductAttribute {
@@ -52,6 +59,9 @@ export interface CartItem {
   quantity: number
   size?: string
   color?: string
+  // Кастомні розміри (для калькулятора)
+  customWidth?: number // Ширина (см)
+  customHeight?: number // Висота (см)
 }
 
 export interface Cart {
