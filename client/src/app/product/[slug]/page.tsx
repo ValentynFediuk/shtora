@@ -6,7 +6,7 @@ import { ChevronRight, Truck, Shield, RefreshCw } from 'lucide-react'
 import { getProduct, getRelatedProducts, getProductSizeVariants } from '@/lib/directus/client'
 import { ProductGrid } from '@/components/product/ProductGrid'
 import { ProductPurchaseSection } from '@/components/product/ProductPurchaseSection'
-import { SizeSelector } from '@/components/product/SizeSelector'
+// SizeSelector тепер використовується всередині ProductPurchaseSection
 
 // Revalidate data every 60 seconds (ISR)
 export const revalidate = 60
@@ -194,17 +194,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </div>
             )}
 
-            {/* Price */}
-            <div className="mb-6 flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-secondary-900">
-                {product.price.toLocaleString('uk-UA')} ₴
-              </span>
-              {product.oldPrice && (
-                <span className="text-xl text-secondary-400 line-through">
-                  {product.oldPrice.toLocaleString('uk-UA')} ₴
-                </span>
-              )}
-            </div>
+            {/* Ціна тепер відображається всередині ProductPurchaseSection і синхронізована з вибраним розміром */}
 
             {/* Availability */}
             <div className="mb-6">
@@ -262,13 +252,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </div>
             )}
 
-            {/* Size selector - показуємо тільки якщо є варіанти розмірів */}
-            {sizeVariants.length > 0 && (
-              <SizeSelector currentProduct={product} sizeVariants={sizeVariants} />
-            )}
-
-            {/* Калькулятор + кнопка додавання в кошик */}
-            <ProductPurchaseSection product={product} />
+            {/* Блок покупки: сітка розмірів (якщо є) або калькулятор (fallback) + кнопка додавання в кошик */}
+            <ProductPurchaseSection product={product} sizeVariants={sizeVariants} />
 
             {/* Features */}
             <div className="mt-8 grid gap-4 border-t pt-6 sm:grid-cols-3">

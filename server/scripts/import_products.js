@@ -52,7 +52,9 @@ const stats = {
   products: 0,
   updated: 0,
   skipped: 0,
-  errors: 0
+  errors: 0,
+  variants_created: 0,
+  variants_updated: 0,
 };
 
 /**
@@ -307,6 +309,67 @@ async function upsertProduct(slug, data) {
 }
 
 /**
+ * Створення або оновлення варіанта розміру/ціни (product_variants)
+ * Очікується, що колекція `product_variants` уже існує у Directus зі схемою:
+ *   { product (rel to products), width (int), height (int), price (decimal), old_price (decimal, nullable), in_stock (bool) }
+ */
+async function upsertProductVariant(productId, variant) {
+  if (!client) return null;
+  if (!productId || !variant || !variant.width || !variant.height || !variant.price) return null;
+
+  if (DRY_RUN) {
+    console.log(`      ↳ варіант ${variant.width}x${variant.height}: ${variant.price} грн${variant.oldPrice ? ` (стара ${variant.oldPrice})` : ''}`);
+    return null;
+  }
+
+  try {
+    const existing = await client.request(
+      readItems('product_variants', {
+        filter: {
+          product: { _eq: productId },
+          width: { _eq: variant.width },
+          height: { _eq: variant.height },
+        },
+        limit: 1,
+      })
+    );
+
+    if (existing && existing.length > 0) {
+      const id = existing[0].id;
+      await client.request(
+        updateItem('product_variants', id, {
+          product: productId,
+          width: variant.width,
+          height: variant.height,
+          price: variant.price,
+          old_price: variant.oldPrice ?? null,
+          in_stock: true,
+        })
+      );
+      stats.variants_updated++;
+      return id;
+    }
+
+    const created = await client.request(
+      createItem('product_variants', {
+        product: productId,
+        width: variant.width,
+        height: variant.height,
+        price: variant.price,
+        old_price: variant.oldPrice ?? null,
+        in_stock: true,
+      })
+    );
+    stats.variants_created++;
+    return created.id;
+  } catch (error) {
+    console.error('  ❌ Помилка варіанту', variant, error.message);
+    stats.errors++;
+    return null;
+  }
+}
+
+/**
  * Головна функція імпорту
  */
 async function main() {
@@ -483,6 +546,21 @@ async function main() {
     // Створюємо/оновлюємо продукт
     const productId = await upsertProduct(baseSlug, productData);
     
+    // Імпорт варіантів розмірів з точними цінами
+    if (productId) {
+      const variants = productInfo.variants || [];
+      for (const v of variants) {
+        // нормалізуємо стару ціну до oldPrice ключа
+        const variant = {
+          width: v.width,
+          height: v.height,
+          price: v.price,
+          oldPrice: v.oldPrice ?? v.old_price ?? null,
+        };
+        await upsertProductVariant(productId, variant);
+      }
+    }
+
     if (!DRY_RUN && productId && stats.products % 10 === 0) {
       console.log(`   ✅ ${stats.products}: ${productInfo.name.substring(0, 50)}...`);
     }
@@ -499,6 +577,8 @@ async function main() {
   console.log(`   🔄 Продуктів оновлено:  ${stats.updated}`);
   console.log(`   ⏭️  Пропущено (дублі):   ${stats.skipped}`);
   console.log(`   ❌ Помилок:             ${stats.errors}`);
+  console.log(`   ➕ Варіантів створено:  ${stats.variants_created}`);
+  console.log(`   🔁 Варіантів оновлено:  ${stats.variants_updated}`);
   console.log();
   
   if (DRY_RUN) {

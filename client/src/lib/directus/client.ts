@@ -7,6 +7,8 @@ interface DirectusSchema {
   categories: DirectusCategory[]
   orders: DirectusOrder[]
   reviews: DirectusReview[]
+  // Нові варіанти розмірів із фіксованими цінами (читання на клієнті)
+  product_variants: DirectusProductVariant[]
 }
 
 interface DirectusProduct {
@@ -82,6 +84,17 @@ interface DirectusReview {
   text: string
   is_verified: boolean
   date_created: string
+}
+
+// Колекція варіантів розмірів (Directus)
+interface DirectusProductVariant {
+  id: string
+  product: string
+  width: number
+  height: number
+  price: number
+  old_price: number | null
+  in_stock: boolean | null
 }
 
 // Create Directus client
@@ -352,57 +365,33 @@ export async function getAvailableSizes(): Promise<string[]> {
 }
 
 // Отримати варіанти товару з різними розмірами (товари з тієї ж категорії з схожою назвою)
-export async function getProductSizeVariants(product: Product): Promise<Product[]> {
+// Отримати дискретні варіанти розмірів із точними цінами (з колекції product_variants)
+export async function getProductSizeVariants(
+  product: Product
+): Promise<{ width: number; height: number; price: number; oldPrice?: number; inStock?: boolean }[]> {
   try {
-    if (!product.categorySlug) return []
+    if (!product?.id) return []
 
-    // Отримуємо базову назву товару (без розмірів та чисел в кінці)
-    const baseName = product.name
-      .replace(/\s*\d+\s*[xх×]\s*\d+\s*(см|мм|м)?/gi, '') // видаляємо розміри типу "100x200 см"
-      .replace(/\s*[-–]\s*\d+\s*(см|мм|м)?/gi, '') // видаляємо розміри типу "- 100 см"
-      .replace(/\s+/g, ' ')
-      .trim()
-
-    // Шукаємо товари з тієї ж категорії
     const items = await directus.request(
-      readItems('products', {
-        filter: {
-          status: { _eq: 'published' },
-          category: { slug: { _eq: product.categorySlug } },
-          id: { _neq: product.id },
-        },
-        limit: 10,
-        fields: ['*', { category: ['id', 'slug', 'name'] }],
+      readItems('product_variants' as any, {
+        filter: { product: { _eq: product.id } } as any,
+        fields: ['width', 'height', 'price', 'old_price', 'in_stock'] as any,
+        sort: ['width', 'height'] as any,
+        limit: 500 as any,
       })
     )
 
-    const products = (items as unknown as DirectusProduct[]).map(transformProduct)
+    const variants = (items as unknown as DirectusProductVariant[]).map((v) => ({
+      width: Number(v.width),
+      height: Number(v.height),
+      price: Number(v.price),
+      oldPrice: v.old_price != null ? Number(v.old_price) : undefined,
+      inStock: v.in_stock == null ? true : Boolean(v.in_stock),
+    }))
 
-    // Фільтруємо товари з схожою базовою назвою
-    const variants = products.filter((p) => {
-      const pBaseName = p.name
-        .replace(/\s*\d+\s*[xх×]\s*\d+\s*(см|мм|м)?/gi, '')
-        .replace(/\s*[-–]\s*\d+\s*(см|мм|м)?/gi, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-
-      // Перевіряємо схожість назв (одна містить іншу або співпадають)
-      return (
-        pBaseName.toLowerCase() === baseName.toLowerCase() ||
-        pBaseName.toLowerCase().includes(baseName.toLowerCase()) ||
-        baseName.toLowerCase().includes(pBaseName.toLowerCase())
-      )
-    })
-
-    // Якщо знайшли варіанти з схожою назвою - повертаємо їх
-    if (variants.length > 0) {
-      return variants
-    }
-
-    // Якщо не знайшли - повертаємо товари з тієї ж категорії з різними розмірами
-    return products.filter((p) => p.sizes && p.sizes.length > 0).slice(0, 4)
+    return variants
   } catch (error) {
-    console.error('Error fetching product size variants:', error)
+    console.error('Error fetching product variants:', error)
     return []
   }
 }
