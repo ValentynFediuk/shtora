@@ -7,6 +7,7 @@ services:
     volumes:
       - ./data/database:/var/lib/postgresql/data
     environment:
+      TELEMETRY: "false"
       POSTGRES_USER: directus
       POSTGRES_PASSWORD: directus
       POSTGRES_DB: directus
