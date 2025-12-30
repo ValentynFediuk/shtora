@@ -43,6 +43,8 @@ const limit = pLimit(3);
 // Кеш для категорій
 const categoryCache = new Map();
 const productCache = new Map();
+// Кеш для консолідації варіантів продуктів
+const productVariantsCache = new Map();
 
 // Статистика
 const stats = {
@@ -52,6 +54,70 @@ const stats = {
   skipped: 0,
   errors: 0
 };
+
+/**
+ * Парсинг розміру з варіанту (наприклад "100*170 см" -> {width: 100, height: 170})
+ */
+function parseVariantSize(variant) {
+  if (!variant) return null;
+  const match = variant.match(/(\d+)\s*[*×x]\s*(\d+)/i);
+  if (match) {
+    return {
+      width: parseInt(match[1], 10),
+      height: parseInt(match[2], 10)
+    };
+  }
+  return null;
+}
+
+/**
+ * Розрахунок ціни за кв.м
+ */
+function calculatePricePerSqm(variants) {
+  if (!variants || variants.length === 0) return null;
+  
+  const pricesPerSqm = variants
+    .filter(v => v.width && v.height && v.price)
+    .map(v => {
+      const area = (v.width / 100) * (v.height / 100);
+      return v.price / area;
+    });
+  
+  if (pricesPerSqm.length === 0) return null;
+  
+  const avg = pricesPerSqm.reduce((a, b) => a + b, 0) / pricesPerSqm.length;
+  return Math.round(avg * 100) / 100;
+}
+
+/**
+ * Отримання полів калькулятора з варіантів
+ */
+function getCalculatorFields(variants) {
+  if (!variants || variants.length === 0) return {};
+  
+  const validVariants = variants.filter(v => v.width && v.height);
+  if (validVariants.length === 0) return {};
+  
+  const widths = validVariants.map(v => v.width);
+  const heights = validVariants.map(v => v.height);
+  
+  const minWidth = Math.min(...widths);
+  const maxWidth = Math.max(...widths);
+  const uniqueHeights = [...new Set(heights)];
+  const fixedHeight = uniqueHeights.length === 1 ? uniqueHeights[0] : null;
+  
+  const pricePerSqm = calculatePricePerSqm(validVariants);
+  
+  return {
+    price_per_sqm: pricePerSqm,
+    min_width: minWidth,
+    max_width: maxWidth,
+    min_height: fixedHeight ? null : Math.min(...heights),
+    max_height: fixedHeight ? null : Math.max(...heights),
+    fixed_height: fixedHeight,
+    sizes: validVariants.map(v => `${v.width}x${v.height}`)
+  };
+}
 
 /**
  * Конвертація значення в boolean
@@ -283,15 +349,13 @@ async function main() {
   console.log(`   Знайдено рядків: ${rows.length}`);
   console.log();
   
-  // Обробляємо кожен рядок
-  console.log('🔄 Імпорт даних...');
+  // ПРОХІД 1: Збираємо та консолідуємо варіанти
+  console.log('📦 Консолідація варіантів продуктів...');
   console.log();
   
-  let processedRows = 0;
+  const consolidatedProducts = new Map();
   
   for (const row of rows) {
-    processedRows++;
-    
     // Витягуємо дані з рядка
     const categoryPath = noEmpty(pick(row, 'Category'));
     const brandName = noEmpty(pick(row, 'Brand'));
@@ -310,63 +374,117 @@ async function main() {
       continue;
     }
     
-    // Формуємо повну назву з варіантом
-    const fullName = variantTitle ? `${productName} ${variantTitle}` : productName;
+    // Використовуємо базовий URL як ключ для консолідації
+    const baseSlug = urlSlug || generateSlug(productName);
     
-    // Генеруємо унікальний slug з варіантом
-    let productSlug = urlSlug;
-    if (variantTitle) {
-      const variantSlug = generateSlug(variantTitle);
-      productSlug = `${urlSlug}-${variantSlug}`;
+    // Парсимо розмір з варіанту
+    const size = parseVariantSize(variantTitle);
+    
+    if (!consolidatedProducts.has(baseSlug)) {
+      consolidatedProducts.set(baseSlug, {
+        name: productName,
+        description: description,
+        brandName: brandName,
+        categoryPath: categoryPath,
+        color: color,
+        material: material,
+        sku: sku,
+        variants: []
+      });
     }
     
-    // Генеруємо SKU якщо порожній
-    const finalSku = sku || generateSku(productName, variantTitle, processedRows);
+    // Додаємо варіант
+    consolidatedProducts.get(baseSlug).variants.push({
+      width: size?.width || null,
+      height: size?.height || null,
+      price: price,
+      oldPrice: oldPrice,
+      variantTitle: variantTitle
+    });
+  }
+  
+  console.log(`   Консолідовано в ${consolidatedProducts.size} унікальних продуктів`);
+  console.log();
+  
+  // ПРОХІД 2: Імпорт консолідованих продуктів
+  console.log('🔄 Імпорт даних...');
+  console.log();
+  
+  let processedProducts = 0;
+  
+  for (const [baseSlug, productInfo] of consolidatedProducts) {
+    processedProducts++;
     
-    // Виводимо перші 5 записів для перевірки в DRY_RUN режимі
-    if (DRY_RUN && processedRows <= 5) {
-      console.log(`📦 Запис #${processedRows}:`);
-      console.log(`   Категорія: ${categoryPath}`);
-      console.log(`   Бренд: ${brandName}`);
-      console.log(`   Назва: ${fullName}`);
-      console.log(`   Slug: ${productSlug}`);
-      console.log(`   SKU: ${finalSku}`);
-      console.log(`   Ціна: ${price} грн`);
-      console.log(`   Стара ціна: ${oldPrice || '-'}`);
+    // Отримуємо поля калькулятора з варіантів
+    const calculatorFields = getCalculatorFields(productInfo.variants);
+    
+    // Знаходимо мінімальну ціну для базової ціни
+    const prices = productInfo.variants.map(v => v.price).filter(Boolean);
+    const oldPrices = productInfo.variants.map(v => v.oldPrice).filter(Boolean);
+    const basePrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const baseOldPrice = oldPrices.length > 0 ? Math.min(...oldPrices) : null;
+    
+    // Виводимо перші 5 продуктів для перевірки в DRY_RUN режимі
+    if (DRY_RUN && processedProducts <= 5) {
+      console.log(`📦 Продукт #${processedProducts}:`);
+      console.log(`   Назва: ${productInfo.name}`);
+      console.log(`   Slug: ${baseSlug}`);
+      console.log(`   Варіантів: ${productInfo.variants.length}`);
+      console.log(`   Базова ціна: ${basePrice} грн`);
+      if (calculatorFields.price_per_sqm) {
+        console.log(`   💰 Ціна за м²: ${calculatorFields.price_per_sqm} грн`);
+        console.log(`   📐 Ширина: ${calculatorFields.min_width}-${calculatorFields.max_width} см`);
+        if (calculatorFields.fixed_height) {
+          console.log(`   📐 Висота: ${calculatorFields.fixed_height} см (фіксована)`);
+        } else {
+          console.log(`   📐 Висота: ${calculatorFields.min_height}-${calculatorFields.max_height} см`);
+        }
+      }
       console.log();
     }
     
-    // Прогрес кожні 100 рядків
-    if (processedRows % 100 === 0) {
-      console.log(`   Оброблено: ${processedRows}/${rows.length} (продуктів: ${stats.products}, категорій: ${stats.categories})`);
+    // Прогрес кожні 50 продуктів
+    if (processedProducts % 50 === 0) {
+      console.log(`   Оброблено: ${processedProducts}/${consolidatedProducts.size} (продуктів: ${stats.products}, категорій: ${stats.categories})`);
     }
     
     // Створюємо/отримуємо категорію
-    const categoryId = await upsertCategoryPath(categoryPath);
+    const categoryId = await upsertCategoryPath(productInfo.categoryPath);
     
     // Формуємо опис з брендом
-    let fullDescription = description || '';
-    if (brandName) {
-      fullDescription = `<p><strong>Бренд:</strong> ${brandName}</p>\n${fullDescription}`;
+    let fullDescription = productInfo.description || '';
+    if (productInfo.brandName) {
+      fullDescription = `<p><strong>Бренд:</strong> ${productInfo.brandName}</p>\n${fullDescription}`;
     }
     
-    // Дані продукту (відповідно до структури Directus)
+    // Генеруємо SKU
+    const finalSku = productInfo.sku || generateSku(productInfo.name, null, processedProducts);
+    
+    // Дані продукту (відповідно до структури Directus) з полями калькулятора
     const productData = {
-      name: fullName,
+      name: productInfo.name,
       description: fullDescription,
-      price: price,
-      old_price: oldPrice,
+      price: basePrice,
+      old_price: baseOldPrice,
       category: categoryId,
       sku: finalSku,
-      color: color,
-      material: material
+      color: productInfo.color,
+      material: productInfo.material,
+      // Поля калькулятора
+      price_per_sqm: calculatorFields.price_per_sqm || null,
+      min_width: calculatorFields.min_width || null,
+      max_width: calculatorFields.max_width || null,
+      min_height: calculatorFields.min_height || null,
+      max_height: calculatorFields.max_height || null,
+      fixed_height: calculatorFields.fixed_height || null,
+      sizes: calculatorFields.sizes || null
     };
     
     // Створюємо/оновлюємо продукт
-    const productId = await upsertProduct(productSlug, productData);
+    const productId = await upsertProduct(baseSlug, productData);
     
     if (!DRY_RUN && productId && stats.products % 10 === 0) {
-      console.log(`   ✅ ${stats.products}: ${fullName.substring(0, 50)}...`);
+      console.log(`   ✅ ${stats.products}: ${productInfo.name.substring(0, 50)}...`);
     }
   }
   

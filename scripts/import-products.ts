@@ -339,33 +339,127 @@ interface DirectusProduct {
   is_hit: boolean
   rating: number
   reviews_count: number
+  // Поля калькулятора цін
+  price_per_sqm: number | null
+  min_width: number | null
+  max_width: number | null
+  min_height: number | null
+  max_height: number | null
+  fixed_height: number | null
 }
 
-async function createProduct(product: typeof products[0]): Promise<void> {
-  // Генеруємо розмір з variant (наприклад "100*170 см" -> "100x170")
-  const sizeFromVariant = product.variant
-    .replace('*', 'x')
-    .replace(' см', '')
-    .trim()
+// Інтерфейс для консолідованого продукту
+interface ConsolidatedProduct {
+  name: string
+  description: string
+  images: string[]
+  slug: string
+  color: string
+  material: string
+  category: string
+  brand: string
+  variants: Array<{
+    width: number
+    height: number
+    price: number
+    old_price: number
+  }>
+}
+
+// Функція для консолідації варіантів продуктів
+function consolidateProducts(rawProducts: typeof products): ConsolidatedProduct[] {
+  const productMap = new Map<string, ConsolidatedProduct>()
+  
+  for (const p of rawProducts) {
+    // Генеруємо базовий slug без розміру
+    const baseSlug = p.slug.replace(/-\d+x\d+$/, '')
+    
+    if (!productMap.has(baseSlug)) {
+      productMap.set(baseSlug, {
+        name: p.name,
+        description: p.description,
+        images: p.images,
+        slug: baseSlug,
+        color: p.color,
+        material: p.material,
+        category: p.category,
+        brand: p.brand,
+        variants: []
+      })
+    }
+    
+    productMap.get(baseSlug)!.variants.push({
+      width: p.width,
+      height: p.height,
+      price: p.price,
+      old_price: p.old_price
+    })
+  }
+  
+  return Array.from(productMap.values())
+}
+
+// Функція для розрахунку ціни за кв.м
+function calculatePricePerSqm(variants: ConsolidatedProduct['variants']): number {
+  // Беремо середнє значення price_per_sqm з усіх варіантів
+  const pricesPerSqm = variants.map(v => {
+    const area = (v.width / 100) * (v.height / 100)
+    return v.price / area
+  })
+  
+  const avgPricePerSqm = pricesPerSqm.reduce((a, b) => a + b, 0) / pricesPerSqm.length
+  return Math.round(avgPricePerSqm * 100) / 100
+}
+
+async function createConsolidatedProduct(product: ConsolidatedProduct): Promise<void> {
+  // Отримуємо статистику з варіантів
+  const widths = product.variants.map(v => v.width)
+  const heights = product.variants.map(v => v.height)
+  const prices = product.variants.map(v => v.price)
+  const oldPrices = product.variants.map(v => v.old_price)
+  
+  const minWidth = Math.min(...widths)
+  const maxWidth = Math.max(...widths)
+  const minHeight = Math.min(...heights)
+  const maxHeight = Math.max(...heights)
+  const basePrice = Math.min(...prices)
+  const baseOldPrice = Math.min(...oldPrices)
+  
+  // Перевіряємо чи висота фіксована (всі варіанти мають однакову висоту)
+  const uniqueHeights = [...new Set(heights)]
+  const fixedHeight = uniqueHeights.length === 1 ? uniqueHeights[0] : null
+  
+  // Розраховуємо ціну за кв.м
+  const pricePerSqm = calculatePricePerSqm(product.variants)
+  
+  // Генеруємо список розмірів для відображення
+  const sizes = product.variants.map(v => `${v.width}x${v.height}`)
 
   const directusProduct: DirectusProduct = {
     status: 'published',
     slug: product.slug,
-    name: `${product.name} ${product.variant}`,
+    name: product.name,
     description: product.description,
-    price: product.price,
-    old_price: product.old_price,
+    price: basePrice,
+    old_price: baseOldPrice,
     sku: `${product.slug}-sku`,
     material: product.material,
     color: product.color,
-    sizes: [sizeFromVariant],
-    width: product.width,
-    height: product.height,
+    sizes: sizes,
+    width: minWidth,
+    height: fixedHeight || minHeight,
     in_stock: true,
     is_new: true,
     is_hit: false,
     rating: 0,
     reviews_count: 0,
+    // Поля калькулятора
+    price_per_sqm: pricePerSqm,
+    min_width: minWidth,
+    max_width: maxWidth,
+    min_height: fixedHeight ? null : minHeight,
+    max_height: fixedHeight ? null : maxHeight,
+    fixed_height: fixedHeight,
   }
 
   const response = await fetch(`${DIRECTUS_URL}/items/products`, {
@@ -382,11 +476,16 @@ async function createProduct(product: typeof products[0]): Promise<void> {
     throw new Error(`Failed to create product: ${error}`)
   }
 
-  const result = await response.json()
+  const result = await response.json() as { data: { id: string } }
   console.log(`✅ Створено товар: ${directusProduct.name} (ID: ${result.data.id})`)
+  console.log(`   📐 Розміри: ${minWidth}-${maxWidth} × ${fixedHeight || `${minHeight}-${maxHeight}`} см`)
+  console.log(`   💰 Ціна за м²: ${pricePerSqm} грн`)
 }
 
 async function main() {
+  // Консолідуємо варіанти в унікальні продукти
+  const consolidatedProducts = consolidateProducts(products)
+  
   if (!DIRECTUS_TOKEN) {
     console.error('❌ Помилка: Не встановлено DIRECTUS_ADMIN_TOKEN')
     console.log('')
@@ -402,14 +501,33 @@ async function main() {
     console.log('  3. Перейдіть у Content -> Products')
     console.log('  4. Створіть товари вручну')
     console.log('')
-    console.log('Дані для імпорту (20 товарів):')
-    console.log('─'.repeat(50))
+    console.log(`Дані для імпорту (${consolidatedProducts.length} консолідованих товарів з ${products.length} варіантів):`)
+    console.log('─'.repeat(60))
     
-    products.forEach((p, i) => {
-      console.log(`${i + 1}. ${p.name} ${p.variant}`)
-      console.log(`   Ціна: ${p.price} грн (стара: ${p.old_price} грн)`)
-      console.log(`   Розмір: ${p.width}x${p.height} см`)
+    consolidatedProducts.forEach((p, i) => {
+      const widths = p.variants.map(v => v.width)
+      const heights = p.variants.map(v => v.height)
+      const prices = p.variants.map(v => v.price)
+      
+      const minWidth = Math.min(...widths)
+      const maxWidth = Math.max(...widths)
+      const uniqueHeights = [...new Set(heights)]
+      const fixedHeight = uniqueHeights.length === 1 ? uniqueHeights[0] : null
+      const basePrice = Math.min(...prices)
+      const pricePerSqm = calculatePricePerSqm(p.variants)
+      
+      console.log(`${i + 1}. ${p.name}`)
+      console.log(`   Slug: ${p.slug}`)
       console.log(`   Колір: ${p.color}`)
+      console.log(`   Варіантів: ${p.variants.length}`)
+      console.log(`   📐 Ширина: ${minWidth}-${maxWidth} см`)
+      if (fixedHeight) {
+        console.log(`   📐 Висота: ${fixedHeight} см (фіксована)`)
+      } else {
+        console.log(`   📐 Висота: ${Math.min(...heights)}-${Math.max(...heights)} см`)
+      }
+      console.log(`   💰 Базова ціна: ${basePrice} грн`)
+      console.log(`   💰 Ціна за м²: ${pricePerSqm} грн`)
       console.log('')
     })
     
@@ -418,18 +536,18 @@ async function main() {
 
   console.log('🚀 Початок імпорту товарів у Directus...')
   console.log(`📍 URL: ${DIRECTUS_URL}`)
-  console.log(`📦 Товарів для імпорту: ${products.length}`)
+  console.log(`📦 Консолідованих товарів: ${consolidatedProducts.length} (з ${products.length} варіантів)`)
   console.log('')
 
   let success = 0
   let failed = 0
 
-  for (const product of products) {
+  for (const product of consolidatedProducts) {
     try {
-      await createProduct(product)
+      await createConsolidatedProduct(product)
       success++
     } catch (error) {
-      console.error(`❌ Помилка імпорту "${product.name} ${product.variant}":`, error)
+      console.error(`❌ Помилка імпорту "${product.name}":`, error)
       failed++
     }
   }
