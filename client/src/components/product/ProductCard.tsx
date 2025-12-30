@@ -1,16 +1,17 @@
 'use client'
 
-import Link from 'next/link'
 import Image from 'next/image'
 import { Heart, ShoppingCart, Eye } from 'lucide-react'
 import { useCartStore } from '@/lib/store/cart'
 import type { Product } from '@/types'
+import { useRouter } from 'next/navigation'
 
 interface ProductCardProps {
   product: Product
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const router = useRouter()
   const addItem = useCartStore((state) => state.addItem)
 
   const discount = product.oldPrice
@@ -19,6 +20,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     addItem({
       id: product.id,
       slug: product.slug,
@@ -30,9 +32,16 @@ export function ProductCard({ product }: ProductCardProps) {
   }
 
   return (
-    <Link
-      href={`/product/${product.slug}`}
-      className="group card overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg"
+    <div
+      role="link"
+      tabIndex={0}
+      className="group card overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg cursor-pointer"
+      onClick={() => {
+        if (product.slug) router.push(`/product/${product.slug}`)
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && product.slug) router.push(`/product/${product.slug}`)
+      }}
     >
       {/* Image container */}
       <div className="relative aspect-square overflow-hidden bg-secondary-100">
@@ -68,6 +77,7 @@ export function ProductCard({ product }: ProductCardProps) {
             className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md transition-colors hover:bg-primary-50"
             onClick={(e) => {
               e.preventDefault()
+              e.stopPropagation()
               // Add to wishlist logic
             }}
           >
@@ -77,6 +87,7 @@ export function ProductCard({ product }: ProductCardProps) {
             className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md transition-colors hover:bg-primary-50"
             onClick={(e) => {
               e.preventDefault()
+              e.stopPropagation()
               // Quick view logic
             }}
           >
@@ -158,6 +169,6 @@ export function ProductCard({ product }: ProductCardProps) {
           </p>
         )}
       </div>
-    </Link>
+    </div>
   )
 }
