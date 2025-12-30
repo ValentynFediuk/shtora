@@ -10,7 +10,6 @@ services:
       POSTGRES_USER: directus
       POSTGRES_PASSWORD: directus
       POSTGRES_DB: directus
-      NODE_TLS_REJECT_UNAUTHORIZED: "0"
     ports:
       - "5432:5432"
     healthcheck:
@@ -32,6 +31,7 @@ services:
       database:
         condition: service_healthy
     environment:
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
       KEY: "shtora-secret-key-change-me-in-production"
       SECRET: "shtora-another-secret-change-me-too"
       
