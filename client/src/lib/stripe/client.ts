@@ -39,7 +39,7 @@ export async function createCheckoutSession(
     payment_method_types: ['card'],
     line_items: lineItems,
     mode: 'payment',
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/`,
     cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cart`,
     customer_email: customerEmail,
     metadata: metadata,

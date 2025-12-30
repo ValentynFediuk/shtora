@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import type { CartItem, Customer, Order } from '@/types'
+import type { CartItem, Customer } from '@/types'
 
 // LiqPay configuration
 const LIQPAY_PUBLIC_KEY = process.env.LIQPAY_PUBLIC_KEY || ''
@@ -94,7 +94,7 @@ export function createPaymentData(
     currency: 'UAH',
     description: description,
     order_id: orderId,
-    result_url: `${APP_URL}/checkout/success?order_id=${orderId}`,
+    result_url: `${APP_URL}/`,
     server_url: `${APP_URL}/api/liqpay/callback`,
     language: 'uk',
     sandbox: process.env.NODE_ENV === 'development' ? 1 : 0,

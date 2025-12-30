@@ -101,16 +101,19 @@ def setup_products(token):
         {"field": "slug", "type": "string", "meta": {"interface": "input", "required": True}, "schema": {"is_unique": True, "is_nullable": False}},
         {"field": "name", "type": "string", "meta": {"interface": "input", "required": True}, "schema": {"is_nullable": False}},
         {"field": "description", "type": "text", "meta": {"interface": "input-rich-text-html"}, "schema": {"is_nullable": True}},
-        {"field": "price", "type": "decimal", "meta": {"interface": "input", "required": True}, "schema": {"is_nullable": False, "numeric_precision": 10, "numeric_scale": 2}},
-        {"field": "old_price", "type": "decimal", "meta": {"interface": "input"}, "schema": {"is_nullable": True, "numeric_precision": 10, "numeric_scale": 2}},
+        # Price moved to 'prices' table, keeping basic fields for filtering/sorting if needed, but per request we split them.
+        # However, removing them might break existing code if not careful.
+        # User said "drop orders", implying a fresh start or major refactor.
+        # I'll keep generic fields but maybe remove explicit size/price if they are now fully relational.
+        # But 'price' usually stays as 'starting price' for lists.
+        # I'll keep them for now to avoid breaking existing frontend which expects 'price' on product.
+        {"field": "price", "type": "decimal", "meta": {"interface": "input", "required": False}, "schema": {"is_nullable": True, "numeric_precision": 10, "numeric_scale": 2}},
         {"field": "image", "type": "uuid", "meta": {"interface": "file-image", "special": ["file"]}, "schema": {"is_nullable": True}},
         {"field": "images", "type": "json", "meta": {"interface": "files", "special": ["files"]}, "schema": {"is_nullable": True}},
         {"field": "category", "type": "uuid", "meta": {"interface": "select-dropdown-m2o", "special": ["m2o"]}, "schema": {"is_nullable": True, "foreign_key_table": "categories", "foreign_key_column": "id"}},
-        {"field": "sku", "type": "string", "meta": {"interface": "input", "required": True}, "schema": {"is_nullable": False}},
+        {"field": "sku", "type": "string", "meta": {"interface": "input", "required": False}, "schema": {"is_nullable": True}},
         {"field": "material", "type": "string", "meta": {"interface": "input"}, "schema": {"is_nullable": True}},
         {"field": "color", "type": "string", "meta": {"interface": "input"}, "schema": {"is_nullable": True}},
-        {"field": "width", "type": "integer", "meta": {"interface": "input"}, "schema": {"is_nullable": True}},
-        {"field": "height", "type": "integer", "meta": {"interface": "input"}, "schema": {"is_nullable": True}},
         {"field": "in_stock", "type": "boolean", "meta": {"interface": "boolean", "default_value": True}, "schema": {"is_nullable": False, "default_value": True}},
         {"field": "is_new", "type": "boolean", "meta": {"interface": "boolean", "default_value": False}, "schema": {"is_nullable": False, "default_value": False}},
         {"field": "is_hit", "type": "boolean", "meta": {"interface": "boolean", "default_value": False}, "schema": {"is_nullable": False, "default_value": False}},
@@ -118,37 +121,45 @@ def setup_products(token):
         {"field": "reviews_count", "type": "integer", "meta": {"interface": "input", "default_value": 0}, "schema": {"is_nullable": False, "default_value": 0}},
         {"field": "date_created", "type": "timestamp", "meta": {"interface": "datetime", "special": ["date-created"], "readonly": True, "hidden": True}, "schema": {"is_nullable": True}},
         {"field": "date_updated", "type": "timestamp", "meta": {"interface": "datetime", "special": ["date-updated"], "readonly": True, "hidden": True}, "schema": {"is_nullable": True}},
+        # Calculator fields can remain on product or move. Usually they are product-specific logic.
+        {"field": "price_per_sqm", "type": "decimal", "meta": {"interface": "input"}, "schema": {"is_nullable": True, "numeric_precision": 10, "numeric_scale": 2}},
+        {"field": "min_width", "type": "integer", "meta": {"interface": "input"}, "schema": {"is_nullable": True}},
+        {"field": "max_width", "type": "integer", "meta": {"interface": "input"}, "schema": {"is_nullable": True}},
+        {"field": "min_height", "type": "integer", "meta": {"interface": "input"}, "schema": {"is_nullable": True}},
+        {"field": "max_height", "type": "integer", "meta": {"interface": "input"}, "schema": {"is_nullable": True}},
+        {"field": "fixed_height", "type": "integer", "meta": {"interface": "input"}, "schema": {"is_nullable": True}},
     ]
     for field in fields:
         add_field(token, "products", field)
 
-def setup_orders(token):
-    """Setup orders collection"""
-    print("\n=== ORDERS ===")
-    create_collection(token, "orders", "receipt", "Замовлення")
+def setup_sizes(token):
+    """Setup sizes collection"""
+    print("\n=== SIZES ===")
+    create_collection(token, "sizes", "straighten", "Розміри")
     
     fields = [
-        {"field": "order_number", "type": "string", "meta": {"interface": "input", "readonly": True}, "schema": {"is_unique": True, "is_nullable": False}},
-        {"field": "status", "type": "string", "meta": {"interface": "select-dropdown", "options": {"choices": [{"text": "Нове", "value": "new"}, {"text": "В обробці", "value": "processing"}, {"text": "Відправлено", "value": "shipped"}, {"text": "Доставлено", "value": "delivered"}, {"text": "Скасовано", "value": "cancelled"}]}, "default_value": "new"}, "schema": {"default_value": "new"}},
-        {"field": "items", "type": "json", "meta": {"interface": "input-code", "options": {"language": "json"}}, "schema": {"is_nullable": False}},
-        {"field": "subtotal", "type": "decimal", "meta": {"interface": "input"}, "schema": {"is_nullable": False, "numeric_precision": 10, "numeric_scale": 2}},
-        {"field": "shipping", "type": "decimal", "meta": {"interface": "input", "default_value": 0}, "schema": {"is_nullable": False, "numeric_precision": 10, "numeric_scale": 2, "default_value": 0}},
-        {"field": "discount", "type": "decimal", "meta": {"interface": "input", "default_value": 0}, "schema": {"is_nullable": False, "numeric_precision": 10, "numeric_scale": 2, "default_value": 0}},
-        {"field": "total", "type": "decimal", "meta": {"interface": "input"}, "schema": {"is_nullable": False, "numeric_precision": 10, "numeric_scale": 2}},
-        {"field": "customer_first_name", "type": "string", "meta": {"interface": "input", "required": True}, "schema": {"is_nullable": False}},
-        {"field": "customer_last_name", "type": "string", "meta": {"interface": "input", "required": True}, "schema": {"is_nullable": False}},
-        {"field": "customer_email", "type": "string", "meta": {"interface": "input", "required": True}, "schema": {"is_nullable": False}},
-        {"field": "customer_phone", "type": "string", "meta": {"interface": "input", "required": True}, "schema": {"is_nullable": False}},
-        {"field": "shipping_city", "type": "string", "meta": {"interface": "input"}, "schema": {"is_nullable": True}},
-        {"field": "shipping_warehouse", "type": "string", "meta": {"interface": "input"}, "schema": {"is_nullable": True}},
-        {"field": "payment_method", "type": "string", "meta": {"interface": "select-dropdown", "options": {"choices": [{"text": "Карткою онлайн", "value": "card"}, {"text": "При отриманні", "value": "cod"}]}}, "schema": {"is_nullable": False}},
-        {"field": "payment_status", "type": "string", "meta": {"interface": "select-dropdown", "options": {"choices": [{"text": "Очікує оплати", "value": "pending"}, {"text": "Оплачено", "value": "paid"}, {"text": "Повернено", "value": "refunded"}]}, "default_value": "pending"}, "schema": {"default_value": "pending"}},
-        {"field": "notes", "type": "text", "meta": {"interface": "input-multiline"}, "schema": {"is_nullable": True}},
-        {"field": "date_created", "type": "timestamp", "meta": {"interface": "datetime", "special": ["date-created"], "readonly": True}, "schema": {"is_nullable": True}},
-        {"field": "date_updated", "type": "timestamp", "meta": {"interface": "datetime", "special": ["date-updated"], "readonly": True, "hidden": True}, "schema": {"is_nullable": True}},
+        {"field": "width", "type": "integer", "meta": {"interface": "input", "required": True}, "schema": {"is_nullable": False}},
+        {"field": "height", "type": "integer", "meta": {"interface": "input", "required": True}, "schema": {"is_nullable": False}},
+        {"field": "name", "type": "string", "meta": {"interface": "input", "readonly": False}, "schema": {"is_nullable": True}},
     ]
     for field in fields:
-        add_field(token, "orders", field)
+        add_field(token, "sizes", field)
+
+def setup_prices(token):
+    """Setup prices collection"""
+    print("\n=== PRICES ===")
+    create_collection(token, "prices", "attach_money", "Ціни")
+    
+    fields = [
+        {"field": "product", "type": "uuid", "meta": {"interface": "select-dropdown-m2o", "special": ["m2o"], "required": True}, "schema": {"is_nullable": False, "foreign_key_table": "products", "foreign_key_column": "id"}},
+        {"field": "size", "type": "uuid", "meta": {"interface": "select-dropdown-m2o", "special": ["m2o"], "required": True}, "schema": {"is_nullable": False, "foreign_key_table": "sizes", "foreign_key_column": "id"}},
+        {"field": "price", "type": "decimal", "meta": {"interface": "input", "required": True}, "schema": {"is_nullable": False, "numeric_precision": 10, "numeric_scale": 2}},
+        {"field": "old_price", "type": "decimal", "meta": {"interface": "input"}, "schema": {"is_nullable": True, "numeric_precision": 10, "numeric_scale": 2}},
+    ]
+    for field in fields:
+        add_field(token, "prices", field)
+
+# NOTE: Колекция orders удалена из настройки Directus
 
 def setup_reviews(token):
     """Setup reviews collection"""
@@ -212,7 +223,8 @@ def main():
     
     setup_categories(token)
     setup_products(token)
-    setup_orders(token)
+    setup_sizes(token)
+    setup_prices(token)
     setup_reviews(token)
     setup_public_permissions(token)
     

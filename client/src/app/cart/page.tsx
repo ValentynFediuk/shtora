@@ -235,9 +235,9 @@ export default function CartPage() {
                 </p>
               )}
 
-              <Link href="/checkout" className="btn-primary w-full py-3">
-                Оформити замовлення
-              </Link>
+              <button className="btn-primary w-full py-3 opacity-50" disabled>
+                Оформлення замовлень тимчасово недоступне
+              </button>
 
               <div className="mt-4 text-center text-xs text-secondary-500">
                 Натискаючи кнопку, ви погоджуєтесь з{' '}

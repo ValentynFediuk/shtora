@@ -11,7 +11,13 @@ type PaymentMethod = 'card' | 'liqpay' | 'cash'
 type DeliveryMethod = 'nova_poshta' | 'ukrposhta' | 'pickup'
 
 export default function CheckoutPage() {
+  // Оформлення замовлень вимкнено — редірект на головну (клієнтський редірект)
   const router = useRouter()
+  // Миттєвий редірект після маунта
+  if (typeof window !== 'undefined') {
+    router.replace('/')
+    return null
+  }
   const isHydrated = useCartHydration()
   const { items, getTotal, clearCart } = useCartStore()
 

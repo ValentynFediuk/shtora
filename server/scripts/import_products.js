@@ -45,6 +45,7 @@ const categoryCache = new Map();
 const productCache = new Map();
 // Кеш для консолідації варіантів продуктів
 const productVariantsCache = new Map();
+const sizeCache = new Map();
 
 // Статистика
 const stats = {
@@ -53,8 +54,10 @@ const stats = {
   updated: 0,
   skipped: 0,
   errors: 0,
-  variants_created: 0,
-  variants_updated: 0,
+  sizes_created: 0,
+  sizes_found: 0,
+  prices_created: 0,
+  prices_updated: 0,
 };
 
 /**
@@ -309,63 +312,120 @@ async function upsertProduct(slug, data) {
 }
 
 /**
- * Створення або оновлення варіанта розміру/ціни (product_variants)
- * Очікується, що колекція `product_variants` уже існує у Directus зі схемою:
- *   { product (rel to products), width (int), height (int), price (decimal), old_price (decimal, nullable), in_stock (bool) }
+ * Створення або оновлення розміру (sizes)
  */
-async function upsertProductVariant(productId, variant) {
-  if (!client) return null;
-  if (!productId || !variant || !variant.width || !variant.height || !variant.price) return null;
+async function upsertSize(width, height) {
+  if (!width || !height) return null;
+  const key = `${width}x${height}`;
+  
+  if (sizeCache.has(key)) return sizeCache.get(key);
+  
+  if (DRY_RUN) {
+    const fakeId = `size_${stats.sizes_created + 1}`;
+    sizeCache.set(key, fakeId);
+    return fakeId;
+  }
+
+  try {
+    // Шукаємо існуючий розмір
+    const existing = await client.request(
+      readItems('sizes', {
+        filter: {
+          _and: [
+            { width: { _eq: width } },
+            { height: { _eq: height } }
+          ]
+        },
+        limit: 1
+      })
+    );
+    
+    if (existing && existing.length > 0) {
+      sizeCache.set(key, existing[0].id);
+      stats.sizes_found++;
+      return existing[0].id;
+    }
+    
+    // Створюємо новий
+    const created = await client.request(
+      createItem('sizes', {
+        width,
+        height,
+        name: `${width}x${height} см`
+      })
+    );
+    
+    sizeCache.set(key, created.id);
+    stats.sizes_created++;
+    return created.id;
+  } catch (error) {
+    console.error(`  ❌ Помилка розміру ${key}:`, error.message);
+    stats.errors++;
+    return null;
+  }
+}
+
+/**
+ * Створення або оновлення ціни (prices)
+ */
+async function upsertPrice(productId, sizeId, price, oldPrice) {
+  if (!client || !productId || !sizeId) return null;
 
   if (DRY_RUN) {
-    console.log(`      ↳ варіант ${variant.width}x${variant.height}: ${variant.price} грн${variant.oldPrice ? ` (стара ${variant.oldPrice})` : ''}`);
+    console.log(`      ↳ Ціна: ${price} (SizeID: ${sizeId})`);
     return null;
   }
 
   try {
     const existing = await client.request(
-      readItems('product_variants', {
+      readItems('prices', {
         filter: {
-          product: { _eq: productId },
-          width: { _eq: variant.width },
-          height: { _eq: variant.height },
+          _and: [
+            { product: { _eq: productId } },
+            { size: { _eq: sizeId } }
+          ]
         },
-        limit: 1,
+        limit: 1
       })
     );
 
     if (existing && existing.length > 0) {
-      const id = existing[0].id;
       await client.request(
-        updateItem('product_variants', id, {
-          product: productId,
-          width: variant.width,
-          height: variant.height,
-          price: variant.price,
-          old_price: variant.oldPrice ?? null,
-          in_stock: true,
+        updateItem('prices', existing[0].id, {
+          price,
+          old_price: oldPrice || null
         })
       );
-      stats.variants_updated++;
-      return id;
+      stats.prices_updated++;
+      return existing[0].id;
     }
 
     const created = await client.request(
-      createItem('product_variants', {
+      createItem('prices', {
         product: productId,
-        width: variant.width,
-        height: variant.height,
-        price: variant.price,
-        old_price: variant.oldPrice ?? null,
-        in_stock: true,
+        size: sizeId,
+        price,
+        old_price: oldPrice || null
       })
     );
-    stats.variants_created++;
+    stats.prices_created++;
     return created.id;
   } catch (error) {
-    console.error('  ❌ Помилка варіанту', variant, error.message);
+    console.error('  ❌ Помилка ціни:', error.message);
     stats.errors++;
     return null;
+  }
+}
+
+/**
+ * Створення або оновлення варіанта (через sizes + prices)
+ */
+async function upsertProductVariant(productId, variant) {
+  if (!productId || !variant || !variant.width || !variant.height || !variant.price) return null;
+
+  const sizeId = await upsertSize(variant.width, variant.height);
+  if (sizeId) {
+    await upsertPrice(productId, sizeId, variant.price, variant.oldPrice);
   }
 }
 
@@ -577,8 +637,9 @@ async function main() {
   console.log(`   🔄 Продуктів оновлено:  ${stats.updated}`);
   console.log(`   ⏭️  Пропущено (дублі):   ${stats.skipped}`);
   console.log(`   ❌ Помилок:             ${stats.errors}`);
-  console.log(`   ➕ Варіантів створено:  ${stats.variants_created}`);
-  console.log(`   🔁 Варіантів оновлено:  ${stats.variants_updated}`);
+  console.log(`   📏 Розмірів створено:   ${stats.sizes_created} (знайдено: ${stats.sizes_found})`);
+  console.log(`   💰 Цін створено:        ${stats.prices_created}`);
+  console.log(`   🔄 Цін оновлено:        ${stats.prices_updated}`);
   console.log();
   
   if (DRY_RUN) {

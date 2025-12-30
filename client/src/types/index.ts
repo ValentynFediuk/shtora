@@ -70,46 +70,7 @@ export interface Cart {
   itemsCount: number
 }
 
-// Order types
-export interface Order {
-  id: string
-  orderNumber: string
-  status: OrderStatus
-  items: OrderItem[]
-  subtotal: number
-  shipping: number
-  discount: number
-  total: number
-  customer: Customer
-  shippingAddress: ShippingAddress
-  paymentMethod: PaymentMethod
-  paymentStatus: PaymentStatus
-  notes?: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface OrderItem {
-  productId: string
-  name: string
-  price: number
-  quantity: number
-  image?: string
-  size?: string
-  color?: string
-}
-
-export type OrderStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'processing'
-  | 'shipped'
-  | 'delivered'
-  | 'cancelled'
-
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded'
-
-export type PaymentMethod = 'card' | 'liqpay' | 'cash_on_delivery'
+// Order types — видалено разом з «orders»
 
 // Customer types
 export interface Customer {

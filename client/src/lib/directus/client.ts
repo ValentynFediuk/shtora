@@ -5,10 +5,25 @@ import type { Product, Category, ProductFilter } from '@/types'
 interface DirectusSchema {
   products: DirectusProduct[]
   categories: DirectusCategory[]
-  orders: DirectusOrder[]
   reviews: DirectusReview[]
-  // Нові варіанти розмірів із фіксованими цінами (читання на клієнті)
-  product_variants: DirectusProductVariant[]
+  // Нові таблиці (нормалізовані розміри та ціни)
+  sizes: DirectusSize[]
+  prices: DirectusPrice[]
+}
+
+interface DirectusSize {
+  id: string
+  width: number
+  height: number
+  name: string
+}
+
+interface DirectusPrice {
+  id: string
+  product: string | DirectusProduct
+  size: string | DirectusSize
+  price: number
+  old_price: number | null
 }
 
 interface DirectusProduct {
@@ -54,27 +69,6 @@ interface DirectusCategory {
   products_count: number
 }
 
-interface DirectusOrder {
-  id: string
-  order_number: string
-  status: string
-  items: object[]
-  subtotal: number
-  shipping: number
-  discount: number
-  total: number
-  customer_first_name: string
-  customer_last_name: string
-  customer_email: string
-  customer_phone: string
-  shipping_city: string
-  shipping_warehouse: string
-  payment_method: string
-  payment_status: string
-  notes: string | null
-  date_created: string
-  date_updated: string
-}
 
 interface DirectusReview {
   id: string
@@ -86,16 +80,6 @@ interface DirectusReview {
   date_created: string
 }
 
-// Колекція варіантів розмірів (Directus)
-interface DirectusProductVariant {
-  id: string
-  product: string
-  width: number
-  height: number
-  price: number
-  old_price: number | null
-  in_stock: boolean | null
-}
 
 // Create Directus client
 // Порядок резолвингу URL для Directus:
