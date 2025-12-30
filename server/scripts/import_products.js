@@ -12,6 +12,9 @@
  *   DRY_RUN          - Режим тестування без запису (true/false)
  */
 
+// Disable SSL verification for self-signed certificates (local dev/proxies)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 import fs from 'fs';
 import iconv from 'iconv-lite';
 import { parse } from 'csv-parse/sync';

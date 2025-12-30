@@ -30,7 +30,7 @@ def make_request(url, data=None, method="GET", token=None):
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     
     try:
-        with urllib.request.urlopen(req, timeout=30) as response:
+        with urllib.request.urlopen(req, timeout=30, context=ssl_context) as response:
             return {"status": response.status, "data": json.loads(response.read().decode('utf-8'))}
     except urllib.error.HTTPError as e:
         return {"status": e.code, "data": json.loads(e.read().decode('utf-8'))}
