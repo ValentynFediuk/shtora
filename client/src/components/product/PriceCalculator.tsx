@@ -30,9 +30,9 @@ function calculatePrice(
 }
 
 export function PriceCalculator({ product, onPriceChange }: PriceCalculatorProps) {
-  // Дефолтні значення
-  const defaultWidth = product.minWidth || 100
-  const defaultHeight = product.fixedHeight || product.minHeight || 170
+  // Дефолтні значення - використовуємо наявні розміри продукту як fallback
+  const defaultWidth = product.minWidth ?? product.width ?? 100
+  const defaultHeight = product.fixedHeight ?? product.minHeight ?? product.height ?? 170
   
   const [width, setWidth] = useState(defaultWidth)
   const [height, setHeight] = useState(defaultHeight)
@@ -41,14 +41,17 @@ export function PriceCalculator({ product, onPriceChange }: PriceCalculatorProps
   // Визначаємо чи висота фіксована (для римських штор)
   const isHeightFixed = !!product.fixedHeight
   
-  // Межі розмірів
-  const minWidth = product.minWidth || 30
-  const maxWidth = product.maxWidth || 300
-  const minHeight = product.minHeight || 50
-  const maxHeight = product.maxHeight || 300
+  // Межі розмірів - якщо діапазонів немає, використовуємо наявні width/height
+  const minWidth = product.minWidth ?? product.width ?? 30
+  const maxWidth = product.maxWidth ?? product.width ?? 300
+  const minHeight = product.minHeight ?? product.height ?? 50
+  const maxHeight = product.maxHeight ?? product.height ?? 300
   
-  // Ціна за кв.м (якщо не вказана — розраховуємо з базової ціни)
-  const pricePerSqm = product.pricePerSqm || (product.price / ((defaultWidth / 100) * (defaultHeight / 100)))
+  // Ціна за кв.м - розраховуємо з фактичних розмірів продукту якщо не вказана
+  const pricePerSqm = product.pricePerSqm ?? 
+    ((product.width && (product.fixedHeight ?? product.height))
+      ? product.price / ((product.width / 100) * ((product.fixedHeight ?? product.height) / 100))
+      : product.price / ((defaultWidth / 100) * (defaultHeight / 100)))
 
   // Розрахунок ціни при зміні розмірів
   const recalculatePrice = useCallback(() => {

@@ -262,8 +262,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </div>
             )}
 
-            {/* Size selector - показуємо завжди якщо є варіанти розмірів */}
-            <SizeSelector currentProduct={product} sizeVariants={sizeVariants} />
+            {/* Size selector - показуємо тільки якщо є варіанти розмірів */}
+            {sizeVariants.length > 0 && (
+              <SizeSelector currentProduct={product} sizeVariants={sizeVariants} />
+            )}
 
             {/* Калькулятор + кнопка додавання в кошик */}
             <ProductPurchaseSection product={product} />

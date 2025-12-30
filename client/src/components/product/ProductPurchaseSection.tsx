@@ -16,7 +16,8 @@ export function ProductPurchaseSection({ product }: ProductPurchaseSectionProps)
   const [customHeight, setCustomHeight] = useState<number | undefined>(undefined)
 
   // Визначаємо чи потрібен калькулятор для цього товару
-  const hasCalculator = !!product.pricePerSqm || !!product.fixedHeight
+  // Показуємо калькулятор якщо є спеціальні поля АБО якщо є базові розміри (fallback)
+  const hasCalculator = !!product.pricePerSqm || !!product.fixedHeight || (!!product.width && !!product.height)
 
   // Callback для оновлення ціни від калькулятора
   const handlePriceChange = useCallback((price: number, width: number, height: number) => {
