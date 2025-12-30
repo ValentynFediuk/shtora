@@ -4,9 +4,6 @@ set -e
 # Опційно: дозволити self-signed сертифікати для вихідних TLS-з'єднань Node.js
 # Використовуйте лише у non-prod середовищах або коли це справді необхідно
 # Увімкнеться, якщо ALLOW_SELF_SIGNED=true
-if [ "${ALLOW_SELF_SIGNED:-false}" = "true" ]; then
-  export NODE_TLS_REJECT_UNAUTHORIZED=0
-fi
 
 # Якщо Railway надав PG* — замапимо їх у DB_*
 if [ -n "$PGHOST" ] && [ -z "$DB_HOST" ]; then

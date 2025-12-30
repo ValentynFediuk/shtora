@@ -7,6 +7,7 @@ services:
     ports:
       - "8055:8055"
     environment:
+         TELEMETRY: "false"
       KEY: localkey
       SECRET: localsecret
       ADMIN_EMAIL: admin@shtora.ua

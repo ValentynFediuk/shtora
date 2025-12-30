@@ -15,9 +15,7 @@
 // TLS handling (secure by default)
 // To temporarily allow self-signed certificates in problematic environments,
 // run with: ALLOW_INSECURE_TLS=1 node server/scripts/import_products.js
-if (process.env.ALLOW_INSECURE_TLS === '1') {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-}
+
 
 import fs from 'fs';
 import iconv from 'iconv-lite';
