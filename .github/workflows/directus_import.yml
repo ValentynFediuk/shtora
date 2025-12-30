@@ -1,0 +1,76 @@
+name: Directus Setup & Import
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/directus_import.yml'
+      - 'server/setup_directus.py'
+      - 'server/scripts/import_products.js'
+      - 'goods.csv'
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'  # кожні 15 хвилин перевіряти здоров'я та виконувати імпорт
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Node deps for import script
+        run: |
+          npm init -y >/dev/null 2>&1 || true
+          npm install @directus/sdk csv-parse iconv-lite p-limit slugify
+
+      - name: Wait for Directus health
+        env:
+          BASE_URL: https://shtora-production.up.railway.app
+        run: |
+          for i in $(seq 1 12); do
+            if curl -k -s -I "$BASE_URL/server/ping" | head -n1 | grep -qE '200|204'; then
+              echo "Directus healthy"; exit 0
+            fi
+            echo "Directus not ready (try $i/12). Waiting 10s..."
+            sleep 10
+          done
+          echo "Directus is not reachable now"; exit 78
+
+      - name: Setup Directus schema
+        env:
+          DIRECTUS_URL: https://shtora-production.up.railway.app
+          ALLOW_INSECURE_TLS: '1'
+          DIRECTUS_EMAIL: admin@shtora.ua
+          DIRECTUS_PASSWORD: admin123
+        run: python3 server/setup_directus.py
+
+      - name: Obtain admin token
+        id: token
+        env:
+          BASE_URL: https://shtora-production.up.railway.app
+        run: |
+          TOKEN=$(curl -k -s -X POST -H "Content-Type: application/json" \
+            -d '{"email":"admin@shtora.ua","password":"admin123"}' \
+            "$BASE_URL/auth/login" | grep -o '"access_token":"[^\"]*' | cut -d '"' -f4)
+          if [ -z "$TOKEN" ]; then echo "Token empty"; exit 1; fi
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Import products CSV into Directus
+        env:
+          DIRECTUS_URL: https://shtora-production.up.railway.app
+          CSV_FILE: goods.csv
+          DIRECTUS_TOKEN: ${{ steps.token.outputs.token }}
+          ALLOW_INSECURE_TLS: '1'
+        run: node server/scripts/import_products.js
