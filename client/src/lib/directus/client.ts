@@ -99,13 +99,19 @@ interface DirectusProductVariant {
 
 // Create Directus client
 // Порядок резолвингу URL для Directus:
-// 1) NEXT_PUBLIC_DIRECTUS_URL (публичная, попадёт в клиентский бандл при необходимости)
-// 2) DIRECTUS_URL (серверная переменная для билда/рантайма Next.js)
-// 3) Безопасный прод-дефолт на Railway (чтобы в проде не уйти на localhost)
+// 1) NEXT_PUBLIC_DIRECTUS_URL — обов'язково в production
+// 2) У development дозволяємо фолбек на DIRECTUS_URL або http://localhost:8055
+const isProd = process.env.NODE_ENV === 'production'
 const directusUrl =
   process.env.NEXT_PUBLIC_DIRECTUS_URL ||
   process.env.DIRECTUS_URL ||
-  'https://shtora-production.up.railway.app'
+  (isProd ? 'https://shtora-production.up.railway.app' : 'http://localhost:8055')
+
+// У production ми падаємо тільки якщо навіть дефолтний Railway-домен недоступний.
+// Якщо хочете жорстко вимагати env — приберіть прод-фолбек вище і залиште виключення тут.
+if (!directusUrl) {
+  throw new Error('Directus URL is required (set NEXT_PUBLIC_DIRECTUS_URL or DIRECTUS_URL)')
+}
 
 export const directus = createDirectus<DirectusSchema>(directusUrl).with(rest())
 

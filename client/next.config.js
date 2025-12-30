@@ -18,6 +18,23 @@ const nextConfig = {
         hostname: 'shtora-production.up.railway.app',
         pathname: '/assets/**',
       },
+      // Динамический хост Directus из переменных окружения
+      ...(() => {
+        try {
+          const url = process.env.NEXT_PUBLIC_DIRECTUS_URL || process.env.DIRECTUS_URL
+          if (!url) return []
+          const u = new URL(url)
+          return [
+            {
+              protocol: u.protocol.replace(':', ''),
+              hostname: u.hostname,
+              pathname: '/assets/**',
+            },
+          ]
+        } catch {
+          return []
+        }
+      })(),
     ],
   },
   env: {
