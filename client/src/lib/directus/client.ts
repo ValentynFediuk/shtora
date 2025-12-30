@@ -85,7 +85,14 @@ interface DirectusReview {
 }
 
 // Create Directus client
-const directusUrl = process.env.DIRECTUS_URL || 'http://localhost:8055'
+// Порядок резолвингу URL для Directus:
+// 1) NEXT_PUBLIC_DIRECTUS_URL (публичная, попадёт в клиентский бандл при необходимости)
+// 2) DIRECTUS_URL (серверная переменная для билда/рантайма Next.js)
+// 3) Безопасный прод-дефолт на Railway (чтобы в проде не уйти на localhost)
+const directusUrl =
+  process.env.NEXT_PUBLIC_DIRECTUS_URL ||
+  process.env.DIRECTUS_URL ||
+  'https://shtora-production.up.railway.app'
 
 export const directus = createDirectus<DirectusSchema>(directusUrl).with(rest())
 

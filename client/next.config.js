@@ -2,13 +2,21 @@
 const nextConfig = {
   images: {
     remotePatterns: [
+      // Directus SaaS (общий случай)
       {
         protocol: 'https',
         hostname: '**.directus.io',
       },
+      // Локальная разработка
       {
         protocol: 'http',
         hostname: 'localhost',
+      },
+      // Прод-домен Directus на Railway
+      {
+        protocol: 'https',
+        hostname: 'shtora-production.up.railway.app',
+        pathname: '/assets/**',
       },
     ],
   },

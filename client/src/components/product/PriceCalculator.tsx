@@ -48,10 +48,14 @@ export function PriceCalculator({ product, onPriceChange }: PriceCalculatorProps
   const maxHeight = product.maxHeight ?? product.height ?? 300
   
   // Ціна за кв.м - розраховуємо з фактичних розмірів продукту якщо не вказана
-  const pricePerSqm = product.pricePerSqm ?? 
-    ((product.width && (product.fixedHeight ?? product.height))
-      ? product.price / ((product.width / 100) * ((product.fixedHeight ?? product.height) / 100))
-      : product.price / ((defaultWidth / 100) * (defaultHeight / 100)))
+  // Типобезпечний розрахунок без доступу до можливих undefined
+  const refWidth = typeof product.width === 'number' ? product.width : defaultWidth
+  const refHeight = typeof product.fixedHeight === 'number'
+    ? product.fixedHeight
+    : (typeof product.height === 'number' ? product.height : defaultHeight)
+  const pricePerSqm = product.pricePerSqm ?? (
+    product.price / ((refWidth / 100) * (refHeight / 100))
+  )
 
   // Розрахунок ціни при зміні розмірів
   const recalculatePrice = useCallback(() => {
