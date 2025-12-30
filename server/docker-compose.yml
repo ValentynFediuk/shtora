@@ -10,6 +10,7 @@ services:
       POSTGRES_USER: directus
       POSTGRES_PASSWORD: directus
       POSTGRES_DB: directus
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
     ports:
       - "5432:5432"
     healthcheck:

@@ -32,8 +32,12 @@ jobs:
 
       - name: Install Node deps for import script
         run: |
-          npm init -y >/dev/null 2>&1 || true
-          npm install @directus/sdk csv-parse iconv-lite p-limit slugify
+          if [ -f package.json ]; then
+            npm ci || npm i
+          else
+            npm init -y >/dev/null 2>&1 || true
+            npm install @directus/sdk csv-parse iconv-lite p-limit slugify
+          fi
 
       - name: Wait for Directus health
         env:
@@ -52,8 +56,6 @@ jobs:
         env:
           DIRECTUS_URL: https://shtora-production.up.railway.app
           ALLOW_INSECURE_TLS: '1'
-          DIRECTUS_EMAIL: admin@shtora.ua
-          DIRECTUS_PASSWORD: admin123
         run: python3 server/setup_directus.py
 
       - name: Obtain admin token
@@ -61,8 +63,10 @@ jobs:
         env:
           BASE_URL: https://shtora-production.up.railway.app
         run: |
+          DIRECTUS_EMAIL=${DIRECTUS_EMAIL:-admin@shtora.ua}
+          DIRECTUS_PASSWORD=${DIRECTUS_PASSWORD:-admin123}
           TOKEN=$(curl -k -s -X POST -H "Content-Type: application/json" \
-            -d '{"email":"admin@shtora.ua","password":"admin123"}' \
+            -d "{\"email\":\"$DIRECTUS_EMAIL\",\"password\":\"$DIRECTUS_PASSWORD\"}" \
             "$BASE_URL/auth/login" | grep -o '"access_token":"[^\"]*' | cut -d '"' -f4)
           if [ -z "$TOKEN" ]; then echo "Token empty"; exit 1; fi
           echo "token=$TOKEN" >> $GITHUB_OUTPUT

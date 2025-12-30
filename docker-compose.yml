@@ -1,0 +1,21 @@
+version: '3.9'
+
+services:
+  directus:
+    image: directus/directus:latest
+    container_name: directus-local
+    ports:
+      - "8055:8055"
+    environment:
+      KEY: localkey
+      SECRET: localsecret
+      ADMIN_EMAIL: admin@shtora.ua
+      ADMIN_PASSWORD: admin123
+      DB_CLIENT: sqlite3
+      DB_FILENAME: /data/data.db
+      WEBSOCKETS_ENABLED: "true"
+      CACHE_ENABLED: "false"
+      TELEMETRY: "false"
+    volumes:
+      - ./directus-data:/data
+    restart: unless-stopped
