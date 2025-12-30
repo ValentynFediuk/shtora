@@ -12,8 +12,12 @@
  *   DRY_RUN          - Режим тестування без запису (true/false)
  */
 
-// Disable SSL verification for self-signed certificates (local dev/proxies)
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// TLS handling (secure by default)
+// To temporarily allow self-signed certificates in problematic environments,
+// run with: ALLOW_INSECURE_TLS=1 node server/scripts/import_products.js
+if (process.env.ALLOW_INSECURE_TLS === '1') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+}
 
 import fs from 'fs';
 import iconv from 'iconv-lite';
@@ -21,6 +25,10 @@ import { parse } from 'csv-parse/sync';
 import { createDirectus, rest, staticToken, readItems, createItem, updateItem } from '@directus/sdk';
 import pLimit from 'p-limit';
 import slugify from 'slugify';
+// Node 18+ has global fetch. Guard just in case older runtimes are used.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+const hasFetch = typeof fetch === 'function'
 
 // Конфігурація
 const DIRECTUS_URL = process.env.DIRECTUS_URL || 'http://localhost:8055';
@@ -440,10 +448,22 @@ async function main() {
   console.log('║       ІМПОРТ ТОВАРІВ З CSV В DIRECTUS                      ║');
   console.log('╚════════════════════════════════════════════════════════════╝');
   console.log();
-  
+
   if (DRY_RUN) {
     console.log('🔍 РЕЖИМ ТЕСТУВАННЯ (DRY_RUN) - дані НЕ будуть записані');
     console.log();
+  }
+
+  // Preflight health-check with retries (only when we actually talk to Directus)
+  if (client) {
+    try {
+      await waitForHealth(DIRECTUS_URL, 5)
+      console.log(`✓ Directus healthy: ${DIRECTUS_URL}`)
+    } catch (e) {
+      console.error('❌ Directus недоступен, прерываю импорт:', e?.message || e)
+      console.error('   Проверьте деплой Railway/логи приложения и повторите позже.')
+      process.exit(1)
+    }
   }
   
   // Перевіряємо наявність файлу
@@ -659,3 +679,27 @@ main().catch(error => {
   console.error('❌ Критична помилка:', error);
   process.exit(1);
 });
+
+/**
+ * Wait until Directus responds on /server/ping with OK/204
+ */
+async function waitForHealth(baseUrl, attempts = 5) {
+  if (!hasFetch) return // best-effort if fetch is not available
+  const normalize = (u) => u?.replace(/\/$/, '')
+  const url = `${normalize(baseUrl)}/server/ping`
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 5000)
+      const res = await fetch(url, { method: 'GET', signal: controller.signal })
+      clearTimeout(timer)
+      if (res.ok || res.status === 204) return
+    } catch (_) {
+      // ignore and retry
+    }
+    const delay = 1000 * i
+    console.log(`Directus not ready (try ${i}/${attempts}). Waiting ${delay}ms...`)
+    await new Promise((r) => setTimeout(r, delay))
+  }
+  throw new Error('Directus is not reachable (timeout)')
+}

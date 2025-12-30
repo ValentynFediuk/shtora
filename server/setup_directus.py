@@ -2,21 +2,30 @@
 """
 Script to setup Directus collections for SHTORA e-commerce
 Uses only built-in libraries (urllib)
+
+Security note:
+- TLS проверка включена по умолчанию. Для проблемных окружений можно временно
+  разрешить небезопасный режим через переменную среды ALLOW_INSECURE_TLS=1.
 """
 
+import os
+import time
 import urllib.request
 import urllib.error
 import json
 import ssl
 
-BASE_URL = "https://shtora-production.up.railway.app"
-EMAIL = "admin@shtora.ua"
-PASSWORD = "admin123"
+# Base configuration (can be overridden via env)
+BASE_URL = os.getenv("DIRECTUS_URL", "https://shtora-production.up.railway.app")
+EMAIL = os.getenv("DIRECTUS_EMAIL", "admin@shtora.ua")
+PASSWORD = os.getenv("DIRECTUS_PASSWORD", "admin123")
 
-# Disable SSL verification for localhost
+# TLS handling (secure by default)
+ALLOW_INSECURE_TLS = os.getenv("ALLOW_INSECURE_TLS") == "1"
 ssl_context = ssl.create_default_context()
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
+if ALLOW_INSECURE_TLS:
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
 
 def make_request(url, data=None, method="GET", token=None):
     """Make HTTP request"""
@@ -33,14 +42,37 @@ def make_request(url, data=None, method="GET", token=None):
         with urllib.request.urlopen(req, timeout=30, context=ssl_context) as response:
             return {"status": response.status, "data": json.loads(response.read().decode('utf-8'))}
     except urllib.error.HTTPError as e:
-        return {"status": e.code, "data": json.loads(e.read().decode('utf-8'))}
+        try:
+            body = json.loads(e.read().decode('utf-8'))
+        except Exception:
+            body = {"errors": [{"message": str(e)}]}
+        return {"status": e.code, "data": body}
     except Exception as e:
         return {"status": 0, "data": {"errors": [{"message": str(e)}]}}
 
+def wait_for_health(attempts: int = 5, delay_base: float = 1.0):
+    """Waits for Directus health endpoint to respond with 200/204"""
+    ping_url = f"{BASE_URL.rstrip('/')}/server/ping"
+    for i in range(1, attempts + 1):
+        res = make_request(ping_url, None, "GET")
+        if res.get("status") in (200, 204):
+            return
+        time.sleep(delay_base * i)
+    raise RuntimeError(f"Directus is not reachable at {ping_url} (timeout)")
+
 def get_token():
-    """Get authentication token"""
+    """Get authentication token (robust error handling)"""
     result = make_request(f"{BASE_URL}/auth/login", {"email": EMAIL, "password": PASSWORD}, "POST")
-    return result["data"]["data"]["access_token"]
+    status = result.get("status")
+    body = result.get("data", {})
+    token = None
+    try:
+        token = body["data"]["access_token"]
+    except Exception:
+        token = None
+    if status != 200 or not token:
+        raise RuntimeError(f"Login failed: status={status}, response={json.dumps(body)[:1000]}")
+    return token
 
 def create_collection(token, name, icon, note):
     """Create a collection with UUID primary key"""
@@ -217,9 +249,24 @@ def main():
     print("SHTORA Directus Setup")
     print("=" * 50)
     
+    # Health pre-check with retries
+    print("\nChecking Directus health (with retries)...")
+    try:
+        wait_for_health()
+        print("✓ Health OK")
+    except Exception as e:
+        print(f"! Health check failed: {e}")
+        print("  Проверьте, что инстанс на Railway запущен и отвечает по /server/ping")
+        return
+
     print("\nGetting token...")
-    token = get_token()
-    print("✓ Token OK")
+    try:
+        token = get_token()
+        print("✓ Token OK")
+    except Exception as e:
+        print(f"! Auth failed: {e}")
+        print("  Убедитесь в корректности EMAIL/PASSWORD и доступности Directus.")
+        return
     
     setup_categories(token)
     setup_products(token)
