@@ -32,9 +32,9 @@ services:
       database:
         condition: service_healthy
     environment:
-       TELEMETRY: "false"
-        DISABLE_UPDATE_CHECK: "true"
-        NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      TELEMETRY: "false"
+      DISABLE_UPDATE_CHECK: "true"
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
       KEY: "shtora-secret-key-change-me-in-production"
       SECRET: "shtora-another-secret-change-me-too"
       
