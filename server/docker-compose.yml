@@ -33,20 +33,21 @@ services:
     environment:
       TELEMETRY: "false"
       DISABLE_UPDATE_CHECK: "true"
-      KEY: "shtora-secret-key-change-me-in-production"
-      SECRET: "shtora-another-secret-change-me-too"
+      KEY: "shtora-secret-key-minimum-32-chars"
+      SECRET: "shtora-another-secret-32-chars-x"
       
       DB_CLIENT: pg
-      DB_HOST: database
+      DB_HOST: postgres.railway.internal
       DB_PORT: 5432
-      DB_DATABASE: directus
-      DB_USER: directus
-      DB_PASSWORD: directus
+      DB_DATABASE: railway
+      DB_USER: postgres
+      DB_PASSWORD: <тот самий PGPASSWORD>
+      DB_SSL: "false"
+
       
       ADMIN_EMAIL: admin@shtora.ua
       ADMIN_PASSWORD: admin123
-      
       CORS_ENABLED: "true"
-      CORS_ORIGIN: "http://localhost:3000,http://localhost:8055"
-      
-      PUBLIC_URL: "http://localhost:8055"
+      CORS_ORIGIN: "*"
+      PUBLIC_URL: "https://shtora-production-up.railway.app"
+
