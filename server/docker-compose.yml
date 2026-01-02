@@ -7,7 +7,6 @@ services:
     volumes:
       - ./data/database:/var/lib/postgresql/data
     environment:
-      NODE_TLS_REJECT_UNAUTHORIZED: 0
       POSTGRES_USER: directus
       POSTGRES_PASSWORD: directus
       POSTGRES_DB: directus
@@ -34,7 +33,6 @@ services:
     environment:
       TELEMETRY: "false"
       DISABLE_UPDATE_CHECK: "true"
-      NODE_TLS_REJECT_UNAUTHORIZED: "0"
       KEY: "shtora-secret-key-change-me-in-production"
       SECRET: "shtora-another-secret-change-me-too"
       
