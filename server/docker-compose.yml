@@ -7,7 +7,7 @@ services:
     volumes:
       - ./data/database:/var/lib/postgresql/data
     environment:
-      NODE_TLS_REJECT_UNAUTHORIZED=0
+      NODE_TLS_REJECT_UNAUTHORIZED: 0
       POSTGRES_USER: directus
       POSTGRES_PASSWORD: directus
       POSTGRES_DB: directus
